@@ -3,7 +3,7 @@
 `cdbg` is a Cwhip source debugger proof of concept built with GTK 4,
 GtkSourceView, and GDB/MI. It compiles Cwhip sources with debug information,
 launches local executables, and inspects breakpoints, frames, locals, and
-watches. Source: [github.com/chucktilbury/cdbg](https://github.com/chucktilbury/cdbg).
+watches. Source: [github.com/cwhip-lang/cdbg](https://github.com/cwhip-lang/cdbg).
 
 This directory contains the debugger in `src/`, examples in `examples/`, tests
 in `tests/`, and build helpers in `scripts/`. It is independently buildable
