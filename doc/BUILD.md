@@ -24,9 +24,9 @@ the runtime archive disables those inspection capabilities.
 ### Syntax cleanup
 
 The application, example and embedded test programs require an SDK containing
-[chucktilbury/cwhip#37](https://github.com/chucktilbury/cwhip/pull/37); the
+[cwhip-lang/cwhip#37](https://github.com/cwhip-lang/cwhip/pull/37); the
 parser regression for chained conditional branches also uses
-[chucktilbury/cwhip#38](https://github.com/chucktilbury/cwhip/pull/38).
+[cwhip-lang/cwhip#38](https://github.com/cwhip-lang/cwhip/pull/38).
 Value returns use `return(expr)` and dictionary literals use `[key: value]`
 (`[:]` for an empty dictionary); lists still use `[]`. Use `#`, `//` or
 `/* ... */` for Cwhip comments, not `;`. Native C code is unchanged.
@@ -48,9 +48,9 @@ regenerated for the selected SDK.
 ### Numeric-v2 migration
 
 This version depends on the compiler numeric migration in
-[chucktilbury/cwhip#25](https://github.com/chucktilbury/cwhip/pull/25) and the
+[cwhip-lang/cwhip#25](https://github.com/cwhip-lang/cwhip/pull/25) and the
 SDK/stdlib migration in
-[chucktilbury/cwhip#26](https://github.com/chucktilbury/cwhip/pull/26). Both are
+[cwhip-lang/cwhip#26](https://github.com/cwhip-lang/cwhip/pull/26). Both are
 merged. Build a fresh SDK from those changes; do not mix rebuilt applications
 with old native packages.
 CMake checks both the exact SDK version and `Cwhip_SDK_ABI = numeric-v2`.
@@ -98,7 +98,7 @@ when this capability is missing.
 ## Configure and build
 
 The project-owned setup script follows the
-[Cwhip template](https://github.com/chucktilbury/cwhip-template) conventions.
+[Cwhip template](https://github.com/cwhip-lang/app-template) conventions.
 Run it from any working directory; paths containing spaces are supported:
 
 ```sh
