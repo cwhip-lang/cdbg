@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Add `.gitattributes` so GitHub does not label `.cw` files as RedCode.
 - Parse target/`--` remainder argv through the SDK `cli` 0.1.0 package.
 - View > Threads (hidden by default): read-only thread list from `-thread-info`;
   activate a row to `-thread-select` and refresh stack/locals/watches. Persist
