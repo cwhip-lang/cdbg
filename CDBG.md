@@ -51,7 +51,7 @@ session ends or the window closes.
 ### Diagnostics and exit status
 
 `cdbg` incrementally follows the shared
-[Cwhip diagnostics contract](https://github.com/chucktilbury/cwhip/blob/master/doc/DIAGNOSTICS.md):
+[Cwhip diagnostics contract](https://github.com/cwhip-lang/cwhip/blob/master/doc/DIAGNOSTICS.md):
 `cdbg: severity[CODE]: explanation`. Diagnostics go to stderr, and `--help`
 goes to stdout via the shared stdlib `cli` `helpText()`. Output is plain text,
 including when redirected or `NO_COLOR` is set. Unknown options and unexpected
