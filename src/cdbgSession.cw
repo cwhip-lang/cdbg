@@ -170,8 +170,14 @@ bool Cdbg.closeRequested() {
             fileDialog.cancel()
             fileDialog = null
         }
+        // Drop transient windows while the parent is still alive. GTK's
+        // destroy-with-parent path disconnects signals on a parent whose
+        // class pointer is already NULL if those windows outlive close.
         if (findWindow != null && !findWindow.disposed()) { findWindow.dispose() }
         if (watchWindow != null && !watchWindow.disposed()) { watchWindow.dispose() }
+        if (conditionWindow != null && !conditionWindow.disposed()) { conditionWindow.dispose() }
+        if (hitCountWindow != null && !hitCountWindow.disposed()) { hitCountWindow.dispose() }
+        if (preferencesWindow != null && !preferencesWindow.disposed()) { preferencesWindow.dispose() }
         endSession()
         return(false)
     }
