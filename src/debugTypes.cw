@@ -1,4 +1,5 @@
 class DebugDiagnostic {
+    public:
     String header(String severity, String code, String text) {
         return(format("cdbg: {}[{}]: {}", severity, code, text))
     }
@@ -10,6 +11,7 @@ class DebugDiagnostic {
 }
 
 class DebugRequest {
+    public:
     String token
     String command
     String purpose
@@ -23,6 +25,7 @@ class DebugRequest {
 }
 
 class DebugSource {
+    public:
     DebugSource _self()
     String path
     GtkSource.View view
@@ -39,6 +42,7 @@ class DebugSource {
 DebugSource DebugSource._self() from "cwhip_gtk_self"
 
 class DebugBreakpoint {
+    public:
     String number
     String path
     String line

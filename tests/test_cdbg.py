@@ -17,6 +17,7 @@ from test_cedit_shortcuts import Display
 PARSER = r'''
 include "mi.cw"
 class Check {
+    public:
     void require(bool condition, String name) {
         if (!condition) { print(format("FAIL {}", name))
             System.Process().exit(1) }
@@ -119,6 +120,7 @@ start {
 DRIVER = r'''
 import time
 class DebugUiFixture {
+    public:
     bool alert()
     bool panes()
     bool noEmoji()
@@ -168,6 +170,7 @@ bool DebugUiFixture.clipboard(String expected) from "cdbg_fixture_clipboard"
 bool DebugUiFixture.step(String name, bool keyboard) from "cdbg_fixture_step"
 
 class DebugChecks {
+    public:
     Cdbg ui
     int64 stage
     int64 stops
@@ -1392,7 +1395,7 @@ int main(void) {
 
 BREAKS_FIXTURE = """\
 import system
-class Counter {
+class Counter { public:
     int64 double(int64 value) {
         int64 doubled = value * 2
         return(doubled)
@@ -1414,7 +1417,7 @@ start {
 """
 
 CW_FIXTURE = """\
-class Counter {
+class Counter { public:
     int64 double(int64 value) {
         int64 doubled = value * 2
         return(doubled)
@@ -1429,7 +1432,7 @@ start {
 """
 
 STEPPING_FIXTURE = """\
-class Counter {
+class Counter { public:
     int64 double(int64 value) {
         int64 doubled = value * 2
         return(doubled)
@@ -1445,7 +1448,7 @@ start {
 }
 """
 
-VALUES_FIXTURE = r'''class Counter {
+VALUES_FIXTURE = r'''class Counter { public:
     int64 value
 }
 start {

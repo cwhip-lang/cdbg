@@ -1,6 +1,7 @@
 import process
 
 class MiValue {
+    public:
     String text
     list keys
     list values
@@ -21,6 +22,7 @@ class MiValue {
 }
 
 class MiParser {
+    public:
     String input
     int64 offset
     bool valid
@@ -191,6 +193,7 @@ class MiParser {
 // separate words; '...' is literal; "..." honours \" \\ \$ \` escapes; an
 // unquoted backslash escapes the next character; '' and "" give empty words.
 class ArgumentList {
+    public:
     list values
     String error
 
@@ -270,6 +273,7 @@ class ArgumentList {
 
 // Session environment: one KEY=VALUE per line; blank lines and # comments ignored.
 class EnvironmentPair {
+    public:
     String name
     String value
     EnvironmentPair(String key, String text) {
@@ -279,6 +283,7 @@ class EnvironmentPair {
 }
 
 class EnvironmentList {
+    public:
     list pairs
     String error
 

@@ -1,4 +1,5 @@
 class CdbgSettings {
+    public:
     String fontFamily
     int64 fontSize
     int64 tabWidth
