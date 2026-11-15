@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Align `doc/CODING.md` with the shared Cwhip standard: spacing,
+  long-call and dict wraps, block indents, and
+  `NewlineBeforeCloseBrace`. The cdbg-only section is unchanged.
 - Keep the format discovery check from treating `cwhip-format` on the
   ambient `PATH` as a missing tool. An installed SDK provides that program.
 - Add a `format` target that runs `cwhip-format -i` on the repository's
