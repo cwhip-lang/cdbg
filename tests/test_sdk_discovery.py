@@ -21,7 +21,7 @@ class SdkDiscoveryTest(unittest.TestCase):
         self.project.mkdir()
         for name in ("CMakeLists.txt", ".project_env"):
             shutil.copy2(PROJECT / name, self.project / name)
-        for name in ("scripts", "src", "tests"):
+        for name in ("scripts", "src", "tests", "cmake"):
             shutil.copytree(PROJECT / name, self.project / name)
         self.home = self.root / "home"
         self.home.mkdir()
@@ -574,6 +574,87 @@ class SdkDiscoveryTest(unittest.TestCase):
         self.configure()
         self.env.pop("CWHIP_SDK")
         self.assertIn("unexpected settings parser", self.configure(success=False))
+
+    def test_format_target_checks_cwhip_format_and_skips_build(self):
+        self.configure()
+        self.assertTrue((self.build / "Makefile").is_file())
+        source = self.project / "src/cdbg.cw"
+        before = source.read_bytes()
+        missing = subprocess.run(
+            ["make", "format"], cwd=self.build, env=self.env,
+            capture_output=True, text=True, timeout=60)
+        self.assertNotEqual(missing.returncode, 0, missing.stdout + missing.stderr)
+        self.assertIn("cwhip-format was not found", missing.stdout + missing.stderr)
+        self.assertEqual(source.read_bytes(), before)
+
+        record = self.root / "format-record.txt"
+        formatter = self.tools / "cwhip-format"
+        formatter.write_text(
+            "#!/bin/sh\n"
+            'printf "%s\\n" "$PWD" > "$FORMAT_RECORD"\n'
+            'printf "%s\\n" "$@" >> "$FORMAT_RECORD"\n'
+        )
+        formatter.chmod(0o755)
+        self.env["FORMAT_RECORD"] = str(record)
+        late = self.project / "late.cw"
+        late.write_text("start {\n}\n")
+        generated = self.build / "generated.cw"
+        generated.write_text("start {\n}\n")
+        nested = self.build / "nested"
+        nested.mkdir()
+        (nested / "generated.cw").write_text("start {\n}\n")
+        present = subprocess.run(
+            ["make", "format"], cwd=self.build, env=self.env,
+            capture_output=True, text=True, timeout=60)
+        self.assertEqual(present.returncode, 0, present.stdout + present.stderr)
+        self.assertEqual(source.read_bytes(), before)
+        recorded = record.read_text().splitlines()
+        self.assertEqual(Path(recorded[0]).resolve(), self.project.resolve())
+        args = recorded[1:]
+        self.assertEqual(args[0], "-i")
+        files = {Path(arg).resolve() for arg in args[1:]}
+        self.assertIn(source.resolve(), files)
+        self.assertIn(late.resolve(), files)
+        self.assertNotIn(generated.resolve(), files)
+        self.assertNotIn((nested / "generated.cw").resolve(), files)
+        build_dir = self.build.resolve()
+        self.assertTrue(all(build_dir not in path.parents for path in files))
+        self.assertNotIn("cmake-format", record.read_text())
+
+    def test_format_script_skips_build_directory_and_binary_dir(self):
+        source = self.root / "sources"
+        (source / "src").mkdir(parents=True)
+        (source / "build").mkdir()
+        (source / "out").mkdir()
+        keep = source / "src/keep.cw"
+        tree_build = source / "build/skip.cw"
+        binary = source / "out/skip.cw"
+        for path in (keep, tree_build, binary):
+            path.write_text("start {\n}\n")
+        record = self.root / "script-format-record.txt"
+        formatter = self.tools / "cwhip-format"
+        formatter.write_text(
+            "#!/bin/sh\n"
+            'printf "%s\\n" "$PWD" > "$FORMAT_RECORD"\n'
+            'printf "%s\\n" "$@" >> "$FORMAT_RECORD"\n'
+        )
+        formatter.chmod(0o755)
+        env = dict(self.env, FORMAT_RECORD=str(record))
+        result = subprocess.run(
+            [
+                "cmake",
+                f"-DSOURCE_DIR={source}",
+                f"-DBINARY_DIR={source / 'out'}",
+                "-P", str(PROJECT / "cmake/format.cmake"),
+            ],
+            cwd=self.root, env=env, capture_output=True, text=True, timeout=60)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        recorded = record.read_text().splitlines()
+        self.assertEqual(Path(recorded[0]).resolve(), source.resolve())
+        files = {Path(arg).resolve() for arg in recorded[2:]}
+        self.assertEqual(recorded[1], "-i")
+        self.assertEqual(files, {keep.resolve()})
+        self.assertEqual(keep.read_text(), "start {\n}\n")
 
 
 if __name__ == "__main__":

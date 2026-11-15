@@ -303,6 +303,21 @@ The rest of the GUI/GDB session tests run using only the installed SDK and
 debugger repository. Inside the project shell, run `build check-noop` for the
 separate opt-in no-op incremental-build check. It is never part of ordinary CTest.
 
+## Format
+
+`format` rewrites the repository's `.cw` sources in place. It runs
+`cwhip-format -i` from the source root, so the tool reads the root
+`.cwhip-format`. Sources under the build directory are left alone.
+A normal configure does not require the tool. From the build directory:
+
+```sh
+make format
+```
+
+`cmake --build build --target format` and, inside the project shell,
+`build format` run the same target. If `cwhip-format` is not on `PATH`,
+the target fails and the message names `cwhip-format`.
+
 ## Install and clean
 
 ```sh

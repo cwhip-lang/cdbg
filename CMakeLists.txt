@@ -192,6 +192,17 @@ if(BUILD_TESTING)
         ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1")
 endif()
 
+# cwhip-format reads the root .cwhip-format. The build directory is skipped.
+add_custom_target(format
+    COMMAND "${CMAKE_COMMAND}"
+        "-DSOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR}"
+        "-DBINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}"
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/format.cmake"
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+    COMMENT "Formatting Cwhip sources with cwhip-format"
+    USES_TERMINAL
+    VERBATIM)
+
 set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_CLEAN_FILES
     "${CMAKE_CURRENT_BINARY_DIR}/test-work"
     "${CMAKE_CURRENT_BINARY_DIR}/values.h")
