@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add a `format` target that runs `cwhip-format -i` on the repository's
+  `.cw` files and skips the build directory.
 - Apply the shared Cwhip coding standard in `doc/CODING.md`: file
   headers, class and method comments, and `cwhip-format` layout.
   Members called from `start` or a test driver stay `public:`.
