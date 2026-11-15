@@ -1,257 +1,401 @@
+/*
+ * src/cdbgExecution.cw — Run, step, and same-line stop handling.
+ *
+ * Created: 2026-10-30
+ * Author: Charles Tilbury
+ *
+ * Changelog:
+ *   2026-10-30  Split debugger methods into modules.
+ *   2026-11-15  Apply the Cwhip coding standard.
+ */
+
+// Continue a stopped target, or start it for the first time. The press is
+// ignored when nothing is loaded, the target is running, a restart is in
+// progress, or an execution command is still pending.
+//
+// Parameters: none.
+// Returns: Nothing.
 void Cdbg.resume() {
-        if (!loaded || running || restarting) {
-            fail("Run ignored: the target is not loaded and stopped")
-            return
-        }
-        if (executing) { ignored("Run ignored: the previous execution command is still pending")
-            return }
-        skipRuntimeLeft = 0
-        skipSameLineLeft = 0
-        skippedSameLineStops = 0
-        if (hasRun) { execute("-exec-continue", "Continue") }
+    if (!loaded || running || restarting) {
+        fail("Run ignored: the target is not loaded and stopped")
+        return
+    }
+    if (executing) {
+        ignored("Run ignored: the previous execution command is still pending")
+        return
+    }
+    skipRuntimeLeft = 0
+    skipSameLineLeft = 0
+    skippedSameLineStops = 0
+    if (hasRun) {
+        execute("-exec-continue", "Continue")
+    }
         else {
-            executing = true
-            startRun()
-            controls()
-        }
-    }
-
-// Every fresh run resends the current arguments, so Session Preferences
-// Apply takes effect on the next Run/Restart. "Break at start" is a temporary
-// breakpoint on the entry symbol: for Cwhip programs `main` is the generated
-// start block, so it stops on the `start {` line; native programs stop in main().
-void Cdbg.startRun() {
-        String args = "-exec-arguments"
-        int64 i = 0
-        while (i < arguments.length) {
-            args.append(format(" {}", MiParser().quote(arguments[i] as String)))
-            i = i + 1
-        }
-        enqueue(args, "arguments", "")
-        if (!sessionCwd.equals("")) {
-            enqueue(format("-environment-cd {}", MiParser().quote(sessionCwd)), "environment", "")
-        }
-        i = 0
-        while (i < environmentPairs.length) {
-            EnvironmentPair item = environmentPairs[i] as EnvironmentPair
-            // GDB 16+ dropped -environment-set-variable; -gdb-set environment remains.
-            enqueue(format("-gdb-set environment {} {}", item.name, MiParser().quote(item.value)),
-                "environment", "")
-            i = i + 1
-        }
-        runHits = []
-        i = 0
-        while (i < breakpointEntries.length) {
-            MiValue entry = breakpointEntries[i] as MiValue
-            runHits.append(format("{}={}", entry.field("number").text, entry.field("times").text))
-            i = i + 1
-        }
-        startMissing = false
-        if (breakAtStart && startBreakpoint.equals("")) {
-            enqueue("-break-insert -t main", "start-break", "")
-        }
-        enqueue("-exec-run", "execute", "")
-    }
-
-void Cdbg.restart() {
-        if (!loaded || active != null || requests.length > 0 || restarting || executing) {
-            fail("Wait for GDB to be ready before restarting")
-            return
-        }
-        if (targetPath.endsWith(".cw")) {
-            restartWithRebuild()
-            return
-        }
-        skipRuntimeLeft = 0
-        restarting = true
-        if (running) { enqueue("-exec-interrupt", "restart-interrupt", "") }
-        else { restartStopped() }
+        executing = true
+        startRun()
         controls()
     }
+}
+
+// Send the current arguments, working directory, and environment, then run.
+// Break at start is a temporary breakpoint on the entry symbol: for Cwhip
+// programs main is the generated start block, so it stops on the start line;
+// native programs stop in main. Every fresh run resends these settings, so
+// Session Apply takes effect on the next Run or Restart.
+//
+// Parameters: none.
+// Returns: Nothing.
+void Cdbg.startRun() {
+    String args = "-exec-arguments"
+    int64 i = 0
+    while (i < arguments.length) {
+        args.append(format(" {}", MiParser().quote(arguments[i] as String)))
+        i = i + 1
+    }
+    enqueue(args, "arguments", "")
+    if (!sessionCwd.equals("")) {
+        enqueue(
+                format("-environment-cd {}", MiParser().quote(sessionCwd)),
+                "environment",
+                "")
+    }
+    i = 0
+    while (i < environmentPairs.length) {
+        EnvironmentPair item = environmentPairs[i] as EnvironmentPair
+        // GDB 16+ dropped -environment-set-variable; -gdb-set environment
+        // remains.
+        enqueue(
+                format(
+                        "-gdb-set environment {} {}",
+                        item.name,
+                        MiParser().quote(item.value)),
+                "environment",
+                "")
+        i = i + 1
+    }
+    runHits = []
+    i = 0
+    while (i < breakpointEntries.length) {
+        MiValue entry = breakpointEntries[i] as MiValue
+        runHits.append(format("{}={}", entry.field("number").text, entry.field(
+                "times").text))
+        i = i + 1
+    }
+    startMissing = false
+    if (breakAtStart && startBreakpoint.equals("")) {
+        enqueue("-break-insert -t main", "start-break", "")
+    }
+    enqueue("-exec-run", "execute", "")
+}
+
+// Restart the loaded target. A Cwhip source is compiled again first; a
+// prebuilt executable is rerun.
+//
+// Parameters: none.
+// Returns: Nothing.
+void Cdbg.restart() {
+    if (!loaded
+            || active != null
+            || requests.length > 0
+            || restarting
+            || executing) {
+        fail("Wait for GDB to be ready before restarting")
+        return
+    }
+    if (targetPath.endsWith(".cw")) {
+        restartWithRebuild()
+        return
+    }
+    skipRuntimeLeft = 0
+    restarting = true
+    if (running) {
+        enqueue("-exec-interrupt", "restart-interrupt", "")
+    }
+        else {
+        restartStopped()
+    }
+    controls()
+}
 
 // Recompile a .cw target, reopen GDB on the new image, then run again.
+//
+// Parameters: none.
+// Returns: Nothing.
 void Cdbg.restartWithRebuild() {
-        list kept = []
-        int64 i = 0
-        while (i < expressions.length) {
-            kept.append(expressions[i] as String)
-            i = i + 1
-        }
-        String path = targetPath
-        bool keepBreak = breakAtStart
-        saveState(false)
-        endSession()
-        pendingWatchRestore = kept
-        expressions = kept
-        rebuildPendingRun = true
-        rebuildBreakAtStart = keepBreak
-        targetPath = path
-        launch()
-        controls()
+    list kept = []
+    int64 i = 0
+    while (i < expressions.length) {
+        kept.append(expressions[i] as String)
+        i = i + 1
     }
+    String path = targetPath
+    bool keepBreak = breakAtStart
+    saveState(false)
+    endSession()
+    pendingWatchRestore = kept
+    expressions = kept
+    rebuildPendingRun = true
+    rebuildBreakAtStart = keepBreak
+    targetPath = path
+    launch()
+    controls()
+}
 
+// Finish a restart once GDB has stopped, and run again when a rebuild asked
+// for that.
+//
+// Parameters: none.
+// Returns: Nothing.
 void Cdbg.restartStopped() {
-        if (hasRun) {
-            enqueue("-interpreter-exec console \"kill\"", "restart-kill", "")
-        } else {
-            restarting = false
-            startRun()
-        }
+    if (hasRun) {
+        enqueue("-interpreter-exec console \"kill\"", "restart-kill", "")
     }
+    else {
+        restarting = false
+        startRun()
+    }
+}
 
-// Browsing a caller selects that frame for inspection, not for execution.
-// A press during the post-stop refresh is accepted: queued inspection and
-// frame-browse requests are discarded, an in-flight one is answered as
-// stale, and only one execution command may be outstanding.
+// Queue one execution command. Browsing a caller selects that frame for
+// inspection, not for execution. A press during the post-stop refresh is
+// accepted: queued inspection and frame-browse requests are discarded, an
+// in-flight one is answered as stale, and only one execution command may be
+// outstanding.
+//
+// command: MI execution command, such as -exec-next.
+// label: Status text that names the command.
+// Returns: Nothing.
 void Cdbg.execute(String command, String label) {
-        if (executing) {
-            ignored(format("{} ignored: the previous execution command is still pending", label))
-            return
-        }
-        bool restoreFrame = selectedFrame != 0
-        list kept = []
-        int64 i = 0
-        while (i < requests.length) {
-            DebugRequest request = requests[i] as DebugRequest
-            if (request.purpose.equals("frame") || request.purpose.equals("thread")) {
-                restoreFrame = true
-            }
-            if (!inspection(request) && !request.purpose.equals("frame") &&
-                !request.purpose.equals("thread")) { kept.append(request) }
-            i = i + 1
-        }
-        requests = kept
-        if (active != null && (inspection(active) || active.purpose.equals("frame") ||
-            active.purpose.equals("thread"))) {
-            if (active.purpose.equals("frame") || active.purpose.equals("thread")) {
-                restoreFrame = true
-            }
-            active.purpose = "stale"
-        }
-        executing = true
-        if (hasRun && restoreFrame) {
-            enqueue("-stack-select-frame 0", "execution-frame", command)
-        } else { enqueue(command, "execute", "") }
-        controls()
+    if (executing) {
+        ignored(format(
+                "{} ignored: the previous execution command is still pending",
+                label))
+        return
     }
 
+    bool restoreFrame = selectedFrame != 0
+    list kept = []
+    int64 i = 0
+    while (i < requests.length) {
+        DebugRequest request = requests[i] as DebugRequest
+        if (request.purpose.equals("frame")
+                || request.purpose.equals("thread")) {
+            restoreFrame = true
+        }
+        if (!inspection(request) && !request.purpose.equals("frame") &&
+                !request.purpose.equals(
+                "thread")) {
+            kept.append(request)
+        }
+        i = i + 1
+    }
+
+    requests = kept
+    if (active != null && (inspection(active) || active.purpose.equals("frame")
+            ||
+            active.purpose.equals(
+            "thread"))) {
+        if (active.purpose.equals("frame")
+                || active.purpose.equals("thread")) {
+            restoreFrame = true
+        }
+        active.purpose = "stale"
+    }
+    executing = true
+    if (hasRun && restoreFrame) {
+        enqueue("-stack-select-frame 0", "execution-frame", command)
+    }
+    else {
+        enqueue(command, "execute", "")
+    }
+    controls()
+}
+
+// Step into the next call. On a Cwhip session, runtime prologue frames are
+// skipped.
+//
+// Parameters: none.
+// Returns: Nothing.
 void Cdbg.stepInto() {
-        if (stopped()) {
-            skipSameLineLeft = 0
-            skippedSameLineStops = 0
-            skipRuntimeLeft = 32
-            skippedRuntimeFrames = 0
-            skipOrigin = stopPosition
-            execute("-exec-step", "Step Into")
-        }
-    }
-
-void Cdbg.stepOver() {
-        skipRuntimeLeft = 0
-        skipOrigin = ""
-        skippedRuntimeFrames = 0
-        skipSameLineLeft = 16
-        skippedSameLineStops = 0
-        if (stopped()) { execute("-exec-next", "Step Over") }
-    }
-
-void Cdbg.stepOut() {
-        skipRuntimeLeft = 0
-        skipOrigin = ""
+    if (stopped()) {
         skipSameLineLeft = 0
         skippedSameLineStops = 0
-        if (stopped()) { execute("-exec-finish", "Step Out") }
+        skipRuntimeLeft = 32
+        skippedRuntimeFrames = 0
+        skipOrigin = stopPosition
+        execute("-exec-step", "Step Into")
     }
+}
 
+// Step over one source line. On a Cwhip session, later stops on that same line
+// are absorbed.
+//
+// Parameters: none.
+// Returns: Nothing.
+void Cdbg.stepOver() {
+    skipRuntimeLeft = 0
+    skipOrigin = ""
+    skippedRuntimeFrames = 0
+    skipSameLineLeft = 16
+    skippedSameLineStops = 0
+    if (stopped()) {
+        execute("-exec-next", "Step Over")
+    }
+}
+
+// Run until the current function returns.
+//
+// Parameters: none.
+// Returns: Nothing.
+void Cdbg.stepOut() {
+    skipRuntimeLeft = 0
+    skipOrigin = ""
+    skipSameLineLeft = 0
+    skippedSameLineStops = 0
+    if (stopped()) {
+        execute("-exec-finish", "Step Out")
+    }
+}
+
+// Report whether a stack frame's file is Cwhip source.
+//
+// path: Full name reported by GDB.
+// Returns: True when the path ends in .cw.
 bool Cdbg.cwhipFrame(String path) {
-        return(path.endsWith(".cw"))
-    }
+    return(path.endsWith(".cw"))
+}
 
+// Report whether a path is a real file the source pane can show.
+//
+// path: Path from a stack frame. Empty and ?? are rejected.
+// Returns: True when the path exists as a file.
 bool Cdbg.openableSource(String path) {
-        if (path.equals("") || path.equals("??")) { return(false) }
-        String absolute = System.FileSystem().absolutePath(path)
-        if (absolute.equals("")) { absolute = path }
-        return(System.FileSystem().isFile(absolute))
-    }
-
-// Thin runtime guards injected around calls; keep finishing through these so
-// Step Into on a Cwhip method still reaches the method body. Real runtime
-// work such as cwhip_string_format_new is not a prologue and is presented.
-bool Cdbg.runtimePrologue(String func) {
-        if (func.startsWith("cwhip_gc_") || func.startsWith("cwhip_trace_") ||
-            func.startsWith("cwhip_runtime_")) { return(true) }
-        if (func.equals("cwhip.require_nonnull") || func.equals("find_containing_object") ||
-            func.equals("find_object")) { return(true) }
+    if (path.equals("") || path.equals("??")) {
         return(false)
     }
+    String absolute = System.FileSystem().absolutePath(path)
+    if (absolute.equals("")) {
+        absolute = path
+    }
+    return(System.FileSystem().isFile(absolute))
+}
 
-// After Step Into on a Cwhip app, finish out of frames with no source and
-// out of thin GC/trace prologues, then step again when finish returns to
-// the call site, until a different .cw stop or a runtime frame that has
-// debug info and is real work (so Step Into on print opens RuntimeGc.c).
-// Pure C sessions keep every stop.
-bool Cdbg.skipRuntimeStop(String path, String func, String position, String reason) {
-        if (skipRuntimeLeft <= 0 || !preferCwhipStops) { return(false) }
-        if (reason.startsWith("exited") || reason.equals("breakpoint-hit") ||
-            reason.equals("watchpoint-trigger") || reason.equals("read-watchpoint-trigger") ||
-            reason.equals("access-watchpoint-trigger") || reason.equals("signal-received")) {
-            skipRuntimeLeft = 0
-            skipOrigin = ""
-            return(false)
-        }
-        bool atOrigin = !skipOrigin.equals("") && position.equals(skipOrigin)
-        if (cwhipFrame(path) && !atOrigin) {
-            skipRuntimeLeft = 0
-            skipOrigin = ""
-            return(false)
-        }
-        if (cwhipFrame(path) && atOrigin) {
-            // Finish bounced back to the call site; step in again.
-            skipRuntimeLeft = skipRuntimeLeft - 1
-            skippedRuntimeFrames = skippedRuntimeFrames + 1
-            executing = true
-            enqueue("-exec-step", "execute", "")
-            controls()
-            return(true)
-        }
-        // Non-.cw frame with openable source that is not a thin prologue: show it.
-        if (openableSource(path) && !runtimePrologue(func)) {
-            skipRuntimeLeft = 0
-            skipOrigin = ""
-            return(false)
-        }
+// Report whether a function is a thin runtime guard around a call. Step Into
+// finishes through these so a Cwhip method body is reached. Real runtime work,
+// such as cwhip_string_format_new, is not a prologue and is shown.
+//
+// func: Function name from the stop.
+// Returns: True for GC, trace, and require-nonnull helpers.
+bool Cdbg.runtimePrologue(String func) {
+    if (func.startsWith("cwhip_gc_") || func.startsWith("cwhip_trace_") ||
+            func.startsWith(
+            "cwhip_runtime_")) {
+        return(true)
+    }
+    if (func.equals("cwhip.require_nonnull") || func.equals(
+            "find_containing_object") ||
+            func.equals(
+            "find_object")) {
+        return(true)
+    }
+    return(false)
+}
+
+// After Step Into on a Cwhip program, finish out of frames with no source and
+// out of thin prologues, then step again when finish returns to the call site,
+// until a different .cw stop or a runtime frame that is real work. Pure C
+// sessions keep every stop.
+//
+// path: Source file of the stop.
+// func: Function name of the stop.
+// position: file:line text of the stop.
+// reason: GDB stop reason.
+// Returns: True when this stop was absorbed and another step or finish was
+// queued.
+bool Cdbg.skipRuntimeStop(
+        String path,
+        String func,
+        String position,
+        String reason) {
+    if (skipRuntimeLeft <= 0 || !preferCwhipStops) {
+        return(false)
+    }
+    if (reason.startsWith("exited") || reason.equals("breakpoint-hit") ||
+            reason.equals(
+            "watchpoint-trigger") || reason.equals(
+            "read-watchpoint-trigger") ||
+            reason.equals(
+            "access-watchpoint-trigger") || reason.equals(
+            "signal-received")) {
+        skipRuntimeLeft = 0
+        skipOrigin = ""
+        return(false)
+    }
+    bool atOrigin = !skipOrigin.equals("") && position.equals(skipOrigin)
+    if (cwhipFrame(path) && !atOrigin) {
+        skipRuntimeLeft = 0
+        skipOrigin = ""
+        return(false)
+    }
+    if (cwhipFrame(path) && atOrigin) {
+        // Finish bounced back to the call site; step in again.
         skipRuntimeLeft = skipRuntimeLeft - 1
         skippedRuntimeFrames = skippedRuntimeFrames + 1
         executing = true
-        enqueue("-exec-finish", "execute", "")
+        enqueue("-exec-step", "execute", "")
         controls()
         return(true)
     }
+    // Non-.cw frame with openable source that is not a thin prologue: show it.
+    if (openableSource(path) && !runtimePrologue(func)) {
+        skipRuntimeLeft = 0
+        skipOrigin = ""
+        return(false)
+    }
+    skipRuntimeLeft = skipRuntimeLeft - 1
+    skippedRuntimeFrames = skippedRuntimeFrames + 1
+    executing = true
+    enqueue("-exec-finish", "execute", "")
+    controls()
+    return(true)
+}
 
-// Step Over on a Cwhip session can stop again on the same file:line at a
-// later PC (for example after returning to a call site mid-line). Continue
-// nexting until the source line changes so one toolbar press matches one
-// statement. Pure C sessions keep every stop.
+// On a Cwhip Step Over, keep nexting while GDB stops again on the same
+// file:line at a later PC, so one press matches one statement. Pure C sessions
+// keep every stop.
+//
+// position: file:line text of the stop.
+// reason: GDB stop reason. Only end-stepping-range is absorbed.
+// Returns: True when this stop was absorbed and another next was queued.
 bool Cdbg.skipSameLineStop(String position, String reason) {
-        if (skipSameLineLeft <= 0 || !preferCwhipStops) { return(false) }
-        if (!reason.equals("end-stepping-range")) {
-            skipSameLineLeft = 0
-            return(false)
-        }
-        if (stopPosition.equals("") || !position.equals(stopPosition)) {
-            skipSameLineLeft = 0
-            return(false)
-        }
-        skipSameLineLeft = skipSameLineLeft - 1
-        skippedSameLineStops = skippedSameLineStops + 1
-        executing = true
-        enqueue("-exec-next", "execute", "")
-        controls()
-        return(true)
+    if (skipSameLineLeft <= 0 || !preferCwhipStops) {
+        return(false)
     }
+    if (!reason.equals("end-stepping-range")) {
+        skipSameLineLeft = 0
+        return(false)
+    }
+    if (stopPosition.equals("") || !position.equals(stopPosition)) {
+        skipSameLineLeft = 0
+        return(false)
+    }
+    skipSameLineLeft = skipSameLineLeft - 1
+    skippedSameLineStops = skippedSameLineStops + 1
+    executing = true
+    enqueue("-exec-next", "execute", "")
+    controls()
+    return(true)
+}
 
+// Ask GDB to interrupt a running target. A press with nothing running is
+// reported and ignored.
+//
+// Parameters: none.
+// Returns: Nothing.
 void Cdbg.interrupt() {
-        if (!loaded || !running) { fail("No running target to pause")
-            return }
-        enqueue("-exec-interrupt", "interrupt", "")
+    if (!loaded || !running) {
+        fail("No running target to pause")
+        return
     }
+    enqueue("-exec-interrupt", "interrupt", "")
+}

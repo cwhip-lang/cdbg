@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Apply the shared Cwhip coding standard in `doc/CODING.md`: file
+  headers, class and method comments, and `cwhip-format` layout.
+  Members called from `start` or a test driver stay `public:`.
+  `examples/debugger.cw` keeps its documented call on line 10.
 - Absorb extra same-line Step Over stops only in a Cwhip session. A pure C
   session keeps every stop.
 - Mark `examples/debugger.cw` members `public:` so the documented

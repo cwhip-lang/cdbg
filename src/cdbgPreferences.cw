@@ -1,367 +1,563 @@
+/*
+ * src/cdbgPreferences.cw — Session, appearance, and keyboard preferences.
+ *
+ * Created: 2026-10-30
+ * Author: Charles Tilbury
+ *
+ * Changelog:
+ *   2026-10-30  Add the multi-pane layout and Preferences.
+ *   2026-11-15  Apply the Cwhip coding standard.
+ */
+
+// Build the Preferences window's Session, Appearance, and Keyboard pages.
+//
+// Parameters: none.
+// Returns: Nothing.
 void Cdbg.createPreferences() {
-        preferencesWindow = Gtk.TransientWindow("cdbg Preferences")
-        preferencesWindow.setTransientFor(window)
-        preferencesWindow.setDefaultSize(850, 600)
-        Gtk.Box root = Gtk.Box(Gtk.Box.VERTICAL, 8)
-        Gtk.Box content = Gtk.Box(Gtk.Box.HORIZONTAL, 12)
-        Gtk.Box categories = Gtk.Box(Gtk.Box.VERTICAL, 6)
-        Gtk.Button sessionCategory = Gtk.Button("Session")
-        Gtk.Button appearanceCategory = Gtk.Button("Appearance")
-        Gtk.Button keyboardCategory = Gtk.Button("Keyboard")
-        categories.append(sessionCategory)
-        categories.append(appearanceCategory)
-        categories.append(keyboardCategory)
-        sessionCategory.onClicked(_self().showSessionPreferences)
-        appearanceCategory.onClicked(_self().showAppearancePreferences)
-        keyboardCategory.onClicked(_self().showKeyboardPreferences)
-        content.append(categories)
-        Gtk.Box pages = Gtk.Box(Gtk.Box.VERTICAL, 8)
-        pages.setHExpand(true)
-        pages.setVExpand(true)
-        content.append(pages)
-        sessionPreferences = Gtk.Box(Gtk.Box.VERTICAL, 6)
-        sessionPreferences.append(Gtk.Label("Session"))
-        setupStart = Gtk.CheckButton("Break at start")
-        sessionPreferences.append(setupStart)
-        sessionPreferences.append(Gtk.Label("Program arguments (shell-style quoting; no shell is run)"))
-        setupArguments = Gtk.Entry("")
-        setupArguments.setHExpand(true)
-        sessionPreferences.append(setupArguments)
-        sessionPreferences.append(Gtk.Label("Working directory (empty = cdbg's current directory)"))
-        setupCwd = Gtk.Entry("")
-        setupCwd.setHExpand(true)
-        sessionPreferences.append(setupCwd)
-        sessionPreferences.append(Gtk.Label("Environment (KEY=VALUE lines; # comments; unset not supported)"))
-        setupEnv = GtkSource.View()
-        setupEnv.configure(settings.fontFamily, settings.fontSize, settings.tabWidth, true, false, false, true)
-        setupEnv.setEmojiMenu(false)
-        setupEnv.setEditable(true)
-        setupEnv.widget().setHExpand(true)
-        setupEnv.widget().setVExpand(true)
-        Gtk.ScrolledWindow envScroll = Gtk.ScrolledWindow()
-        envScroll.setChild(setupEnv.widget())
-        envScroll.setHExpand(true)
-        envScroll.setVExpand(true)
-        sessionPreferences.append(envScroll)
-        setupStatus = Gtk.Label("")
-        sessionPreferences.append(setupStatus)
-        Gtk.Box sessionButtons = Gtk.Box(Gtk.Box.HORIZONTAL, 6)
-        sessionPreferences.append(sessionButtons)
-        button(sessionButtons, "Apply", _self().applySetup)
-        button(sessionButtons, "Cancel", _self().closeSetup)
-        pages.append(sessionPreferences)
-        appearancePreferences = Gtk.Box(Gtk.Box.VERTICAL, 6)
-        appearancePreferences.append(Gtk.Label("Appearance"))
-        fontEntry = preferenceEntry(appearancePreferences, "Monospace font family", settings.fontFamily)
-        sizeEntry = preferenceEntry(appearancePreferences, "Font size (6-72 pt)", format("{}", settings.fontSize))
-        tabsEntry = preferenceEntry(appearancePreferences, "Tab width (1-16 columns)", format("{}", settings.tabWidth))
-        numbersCheck = Gtk.CheckButton("Show line numbers in source panes")
-        numbersCheck.setActive(settings.lineNumbers)
-        numbersCheck.onToggled(_self().appearanceCheckChanged)
-        appearancePreferences.append(numbersCheck)
-        fontEntry.onChanged(_self().appearanceSettingChanged)
-        sizeEntry.onChanged(_self().appearanceSettingChanged)
-        tabsEntry.onChanged(_self().appearanceSettingChanged)
-        Gtk.Button appearanceReset = Gtk.Button("Reset Appearance to Defaults")
-        appearanceReset.onClicked(_self().resetAppearancePreferences)
-        appearancePreferences.append(appearanceReset)
-        pages.append(appearancePreferences)
-        appearancePreferences.setVisible(false)
-        keyboardPreferences = Gtk.Box(Gtk.Box.VERTICAL, 6)
-        commandSearch = Gtk.Entry("")
-        keyboardPreferences.append(Gtk.Label("Search commands; empty binding disables a command"))
-        keyboardPreferences.append(commandSearch)
-        commandSearch.onChanged(_self().commandSearchChanged)
-        Gtk.ScrolledWindow scroll = Gtk.ScrolledWindow()
-        scroll.setVExpand(true)
-        keyboardRowsBox = Gtk.Grid(6)
-        scroll.setChild(keyboardRowsBox)
-        keyboardRows = []
-        keyboardPreferences.append(scroll)
-        Gtk.Button keyboardReset = Gtk.Button("Reset Keyboard to Defaults")
-        keyboardReset.onClicked(_self().resetKeyboardPreferences)
-        keyboardPreferences.append(keyboardReset)
-        pages.append(keyboardPreferences)
-        keyboardPreferences.setVisible(false)
-        root.append(content)
-        String settingsError = ""
-        if (!settings.errors.equals("")) {
-            settingsError = DebugDiagnostic().header("error", "CDBG2002",
+    preferencesWindow = Gtk.TransientWindow("cdbg Preferences")
+    preferencesWindow.setTransientFor(window)
+    preferencesWindow.setDefaultSize(850, 600)
+    Gtk.Box root = Gtk.Box(Gtk.Box.VERTICAL, 8)
+    Gtk.Box content = Gtk.Box(Gtk.Box.HORIZONTAL, 12)
+    Gtk.Box categories = Gtk.Box(Gtk.Box.VERTICAL, 6)
+    Gtk.Button sessionCategory = Gtk.Button("Session")
+    Gtk.Button appearanceCategory = Gtk.Button("Appearance")
+    Gtk.Button keyboardCategory = Gtk.Button("Keyboard")
+    categories.append(sessionCategory)
+    categories.append(appearanceCategory)
+    categories.append(keyboardCategory)
+    sessionCategory.onClicked(_self().showSessionPreferences)
+    appearanceCategory.onClicked(_self().showAppearancePreferences)
+    keyboardCategory.onClicked(_self().showKeyboardPreferences)
+    content.append(categories)
+    Gtk.Box pages = Gtk.Box(Gtk.Box.VERTICAL, 8)
+    pages.setHExpand(true)
+    pages.setVExpand(true)
+    content.append(pages)
+    sessionPreferences = Gtk.Box(Gtk.Box.VERTICAL, 6)
+    sessionPreferences.append(Gtk.Label("Session"))
+    setupStart = Gtk.CheckButton("Break at start")
+    sessionPreferences.append(setupStart)
+    sessionPreferences.append(Gtk.Label(
+            "Program arguments (shell-style quoting; no shell is run)"))
+    setupArguments = Gtk.Entry("")
+    setupArguments.setHExpand(true)
+    sessionPreferences.append(setupArguments)
+    sessionPreferences.append(Gtk.Label(
+            "Working directory (empty = cdbg's current directory)"))
+    setupCwd = Gtk.Entry("")
+    setupCwd.setHExpand(true)
+    sessionPreferences.append(setupCwd)
+    sessionPreferences.append(Gtk.Label(
+            "Environment (KEY=VALUE lines; # comments; unset not supported)"))
+    setupEnv = GtkSource.View()
+    setupEnv.configure(
+            settings.fontFamily,
+            settings.fontSize,
+            settings.tabWidth,
+            true,
+            false,
+            false,
+            true)
+    setupEnv.setEmojiMenu(false)
+    setupEnv.setEditable(true)
+    setupEnv.widget().setHExpand(true)
+    setupEnv.widget().setVExpand(true)
+    Gtk.ScrolledWindow envScroll = Gtk.ScrolledWindow()
+    envScroll.setChild(setupEnv.widget())
+    envScroll.setHExpand(true)
+    envScroll.setVExpand(true)
+    sessionPreferences.append(envScroll)
+    setupStatus = Gtk.Label("")
+    sessionPreferences.append(setupStatus)
+    Gtk.Box sessionButtons = Gtk.Box(Gtk.Box.HORIZONTAL, 6)
+    sessionPreferences.append(sessionButtons)
+    button(sessionButtons, "Apply", _self().applySetup)
+    button(sessionButtons, "Cancel", _self().closeSetup)
+    pages.append(sessionPreferences)
+    appearancePreferences = Gtk.Box(Gtk.Box.VERTICAL, 6)
+    appearancePreferences.append(Gtk.Label("Appearance"))
+    fontEntry = preferenceEntry(
+            appearancePreferences,
+            "Monospace font family",
+            settings.fontFamily)
+    sizeEntry = preferenceEntry(
+            appearancePreferences,
+            "Font size (6-72 pt)",
+            format("{}", settings.fontSize))
+    tabsEntry = preferenceEntry(
+            appearancePreferences,
+            "Tab width (1-16 columns)",
+            format("{}", settings.tabWidth))
+    numbersCheck = Gtk.CheckButton("Show line numbers in source panes")
+    numbersCheck.setActive(settings.lineNumbers)
+    numbersCheck.onToggled(_self().appearanceCheckChanged)
+    appearancePreferences.append(numbersCheck)
+    fontEntry.onChanged(_self().appearanceSettingChanged)
+    sizeEntry.onChanged(_self().appearanceSettingChanged)
+    tabsEntry.onChanged(_self().appearanceSettingChanged)
+    Gtk.Button appearanceReset = Gtk.Button("Reset Appearance to Defaults")
+    appearanceReset.onClicked(_self().resetAppearancePreferences)
+    appearancePreferences.append(appearanceReset)
+    pages.append(appearancePreferences)
+    appearancePreferences.setVisible(false)
+    keyboardPreferences = Gtk.Box(Gtk.Box.VERTICAL, 6)
+    commandSearch = Gtk.Entry("")
+    keyboardPreferences.append(Gtk.Label(
+            "Search commands; empty binding disables a command"))
+    keyboardPreferences.append(commandSearch)
+    commandSearch.onChanged(_self().commandSearchChanged)
+    Gtk.ScrolledWindow scroll = Gtk.ScrolledWindow()
+    scroll.setVExpand(true)
+    keyboardRowsBox = Gtk.Grid(6)
+    scroll.setChild(keyboardRowsBox)
+    keyboardRows = []
+    keyboardPreferences.append(scroll)
+    Gtk.Button keyboardReset = Gtk.Button("Reset Keyboard to Defaults")
+    keyboardReset.onClicked(_self().resetKeyboardPreferences)
+    keyboardPreferences.append(keyboardReset)
+    pages.append(keyboardPreferences)
+    keyboardPreferences.setVisible(false)
+    root.append(content)
+    String settingsError = ""
+    if (!settings.errors.equals("")) {
+        settingsError = DebugDiagnostic().header("error", "CDBG2002",
                 format("{}: {}", settings.path, settings.errors))
-        }
-        preferencesMessage = Gtk.Label(settingsError)
-        root.append(preferencesMessage)
-        settingsPathLabel = Gtk.Label(format("Appearance and keyboard automatically saved to {}", settings.path))
-        root.append(settingsPathLabel)
-        resetChoices = Gtk.Box(Gtk.Box.HORIZONTAL, 6)
-        resetChoices.append(Gtk.Label("Reset this section?"))
-        confirmResetButton = Gtk.Button("Confirm Reset")
-        cancelResetButton = Gtk.Button("Cancel")
-        confirmResetButton.onClicked(_self().confirmPreferencesReset)
-        cancelResetButton.onClicked(_self().cancelPreferencesReset)
-        resetChoices.append(confirmResetButton)
-        resetChoices.append(cancelResetButton)
-        root.append(resetChoices)
-        resetChoices.setVisible(false)
-        preferencesWindow.setChild(root)
-        preferencesWindow.onCloseRequest(_self().hidePreferences)
+    }
+    preferencesMessage = Gtk.Label(settingsError)
+    root.append(preferencesMessage)
+    settingsPathLabel = Gtk.Label(format(
+            "Appearance and keyboard automatically saved to {}",
+            settings.path))
+    root.append(settingsPathLabel)
+    resetChoices = Gtk.Box(Gtk.Box.HORIZONTAL, 6)
+    resetChoices.append(Gtk.Label("Reset this section?"))
+    confirmResetButton = Gtk.Button("Confirm Reset")
+    cancelResetButton = Gtk.Button("Cancel")
+    confirmResetButton.onClicked(_self().confirmPreferencesReset)
+    cancelResetButton.onClicked(_self().cancelPreferencesReset)
+    resetChoices.append(confirmResetButton)
+    resetChoices.append(cancelResetButton)
+    root.append(resetChoices)
+    resetChoices.setVisible(false)
+    preferencesWindow.setChild(root)
+    preferencesWindow.onCloseRequest(_self().hidePreferences)
+    preferencesWindow.setVisible(false)
+}
+
+// Add a labeled text entry to a preferences page.
+//
+// page: Page box that receives the row.
+// label: Text shown beside the entry.
+// text: Initial entry text.
+// Returns: The entry that was added.
+Gtk.Entry Cdbg.preferenceEntry(Gtk.Box page, String label, String text) {
+    Gtk.Box row = Gtk.Box(Gtk.Box.HORIZONTAL, 6)
+    row.append(Gtk.Label(label))
+    Gtk.Entry entry = Gtk.Entry(text)
+    entry.setHExpand(true)
+    row.append(entry)
+    page.append(row)
+    return(entry)
+}
+
+// Open Preferences on the Session page.
+//
+// Parameters: none.
+// Returns: Nothing.
+void Cdbg.showPreferences() {
+    if (preferencesWindow == null) {
+        createPreferences()
+    }
+    showSessionPreferences()
+    preferencesWindow.present()
+}
+
+// Open Preferences. This name remains so session tests that still call
+// showSetup, and the setupItem alias, reach the same window.
+//
+// Parameters: none.
+// Returns: Nothing.
+void Cdbg.showSetup() {
+    showPreferences()
+    setupStart.setActive(breakAtStart)
+    setupArguments.setText(ArgumentList().display(arguments))
+    setupCwd.setText(sessionCwd)
+    setupEnv.setText(environmentText)
+    if (stateTarget.equals("")) {
+        setupStatus.setText(
+                "No target loaded: Break at start becomes this directory's default")
+    }
+    else {
+        setupStatus.setText(format("Settings for {}", stateTarget))
+    }
+    setupArguments.focus()
+}
+
+// Hide Preferences without applying the Session page.
+//
+// Parameters: none.
+// Returns: Nothing.
+void Cdbg.closeSetup() {
+    if (preferencesWindow != null && !preferencesWindow.disposed()) {
         preferencesWindow.setVisible(false)
     }
+}
 
-Gtk.Entry Cdbg.preferenceEntry(Gtk.Box page, String label, String text) {
-        Gtk.Box row = Gtk.Box(Gtk.Box.HORIZONTAL, 6)
-        row.append(Gtk.Label(label))
-        Gtk.Entry entry = Gtk.Entry(text)
-        entry.setHExpand(true)
-        row.append(entry)
-        page.append(row)
-        return(entry)
-    }
+// Hide Preferences when its window is closed.
+//
+// Parameters: none.
+// Returns: True so the window is allowed to close.
+bool Cdbg.setupCloseRequested() {
+    closeSetup()
+    return(true)
+}
 
-void Cdbg.showPreferences() {
-        if (preferencesWindow == null) { createPreferences() }
-        showSessionPreferences()
-        preferencesWindow.present()
-    }
-
-// Alias for session tests that still open Preferences via setupItem / showSetup.
-void Cdbg.showSetup() {
-        showPreferences()
-        setupStart.setActive(breakAtStart)
-        setupArguments.setText(ArgumentList().display(arguments))
-        setupCwd.setText(sessionCwd)
-        setupEnv.setText(environmentText)
-        if (stateTarget.equals("")) {
-            setupStatus.setText("No target loaded: Break at start becomes this directory's default")
-        } else { setupStatus.setText(format("Settings for {}", stateTarget)) }
-        setupArguments.focus()
-    }
-
-void Cdbg.closeSetup() {
-        if (preferencesWindow != null && !preferencesWindow.disposed()) {
-            preferencesWindow.setVisible(false)
-        }
-    }
-
-bool Cdbg.setupCloseRequested() { closeSetup()
-        return(true) }
-
+// Hide Preferences and cancel any pending reset confirmation.
+//
+// Parameters: none.
+// Returns: True so a close request is accepted.
 bool Cdbg.hidePreferences() {
-        prepareShortcutRecord()
-        if (preferencesWindow != null && !preferencesWindow.disposed()) {
-            preferencesWindow.setVisible(false)
-        }
-        return(true)
+    prepareShortcutRecord()
+    if (preferencesWindow != null && !preferencesWindow.disposed()) {
+        preferencesWindow.setVisible(false)
     }
+    return(true)
+}
 
+// Switch Preferences to the Session page and fill it from the current target.
+//
+// Parameters: none.
+// Returns: Nothing.
 void Cdbg.showSessionPreferences() {
-        if (preferencesWindow == null) { createPreferences() }
-        prepareShortcutRecord()
-        sessionPreferences.setVisible(true)
-        appearancePreferences.setVisible(false)
-        keyboardPreferences.setVisible(false)
-        resetChoices.setVisible(false)
-        setupStart.setActive(breakAtStart)
-        setupArguments.setText(ArgumentList().display(arguments))
-        setupCwd.setText(sessionCwd)
-        setupEnv.setText(environmentText)
-        if (stateTarget.equals("")) {
-            setupStatus.setText("No target loaded: Break at start becomes this directory's default")
-        } else { setupStatus.setText(format("Settings for {}", stateTarget)) }
-        preferencesWindow.setVisible(true)
-        preferencesWindow.present()
+    if (preferencesWindow == null) {
+        createPreferences()
     }
+    prepareShortcutRecord()
+    sessionPreferences.setVisible(true)
+    appearancePreferences.setVisible(false)
+    keyboardPreferences.setVisible(false)
+    resetChoices.setVisible(false)
+    setupStart.setActive(breakAtStart)
+    setupArguments.setText(ArgumentList().display(arguments))
+    setupCwd.setText(sessionCwd)
+    setupEnv.setText(environmentText)
+    if (stateTarget.equals("")) {
+        setupStatus.setText(
+                "No target loaded: Break at start becomes this directory's default")
+    }
+    else {
+        setupStatus.setText(format("Settings for {}", stateTarget))
+    }
+    preferencesWindow.setVisible(true)
+    preferencesWindow.present()
+}
 
+// Switch Preferences to the Appearance page and fill it from saved settings.
+//
+// Parameters: none.
+// Returns: Nothing.
 void Cdbg.showAppearancePreferences() {
-        if (preferencesWindow == null) { createPreferences() }
-        prepareShortcutRecord()
-        sessionPreferences.setVisible(false)
-        appearancePreferences.setVisible(true)
-        keyboardPreferences.setVisible(false)
-        resetChoices.setVisible(false)
+    if (preferencesWindow == null) {
+        createPreferences()
+    }
+    prepareShortcutRecord()
+    sessionPreferences.setVisible(false)
+    appearancePreferences.setVisible(true)
+    keyboardPreferences.setVisible(false)
+    resetChoices.setVisible(false)
+    refreshingPreferences = true
+    fontEntry.setText(settings.fontFamily)
+    sizeEntry.setText(format("{}", settings.fontSize))
+    tabsEntry.setText(format("{}", settings.tabWidth))
+    numbersCheck.setActive(settings.lineNumbers)
+    refreshingPreferences = false
+    preferencesWindow.setVisible(true)
+    preferencesWindow.present()
+}
+
+// Switch Preferences to the Keyboard page and rebuild its command rows.
+//
+// Parameters: none.
+// Returns: Nothing.
+void Cdbg.showKeyboardPreferences() {
+    if (preferencesWindow == null) {
+        createPreferences()
+    }
+    sessionPreferences.setVisible(false)
+    appearancePreferences.setVisible(false)
+    keyboardPreferences.setVisible(true)
+    resetChoices.setVisible(false)
+    if (keyboardRows.length == 0) {
+        int64 i = 0
+        while (i < settings.commands.length) {
+            keyboardRows.append(
+                    KeyboardPreference(
+                            settings,
+                            settings.commands[i] as CommandBinding,
+                            _self().keyboardChanged,
+                            _self().prepareShortcutRecord,
+                            keyboardRowsBox,
+                            i))
+            i = i + 1
+        }
+    }
+    filterCommands("")
+    preferencesWindow.setVisible(true)
+    preferencesWindow.present()
+}
+
+// Apply appearance as the user edits a text field on that page.
+//
+// text: The entry's new text. The value is read from the entries themselves.
+// Returns: Nothing.
+void Cdbg.appearanceSettingChanged(String text) {
+    appearanceChanged()
+}
+
+// Validate the Appearance fields, apply them to open views, and save when they
+// are valid.
+//
+// Parameters: none.
+// Returns: Nothing.
+void Cdbg.appearanceChanged() {
+    if (refreshingPreferences) {
+        return
+    }
+    String font = fontEntry.text().trim()
+    String problem = settings.fontError(font)
+    int64 size = sizeEntry.text().toInt64()
+    int64 tabs = tabsEntry.text().toInt64()
+    if (!problem.equals("")) {
+        preferencesMessage.setText(problem)
+        return
+    }
+    if (size < 6 || size > 72) {
+        preferencesMessage.setText("Font size must be between 6 and 72")
+        return
+    }
+    if (tabs < 1 || tabs > 16) {
+        preferencesMessage.setText("Tab width must be between 1 and 16")
+        return
+    }
+    settings.fontFamily = font
+    settings.fontSize = size
+    settings.tabWidth = tabs
+    preferencesMessage.setText("")
+    applyAppearance()
+    saveSettings()
+}
+
+// Apply appearance when the line-number check changes.
+//
+// active: True when line numbers are checked.
+// Returns: Nothing.
+void Cdbg.appearanceCheckChanged(bool active) {
+    if (refreshingPreferences) {
+        return
+    }
+    settings.lineNumbers = active
+    applyAppearance()
+    saveSettings()
+}
+
+// Filter the keyboard command list as the search entry changes.
+//
+// text: Current search text.
+// Returns: Nothing.
+void Cdbg.commandSearchChanged(String text) {
+    filterCommands(text)
+}
+
+// Show keyboard rows whose name or id contains the query.
+//
+// text: Search text. An empty query shows every command.
+// Returns: Nothing.
+void Cdbg.filterCommands(String text) {
+    String query = text.trim().toLower()
+    if (query.equals("") && commandSearch != null) {
+        query = commandSearch.text().trim().toLower()
+    }
+    int64 i = 0
+    while (i < keyboardRows.length) {
+        KeyboardPreference row = keyboardRows[i] as KeyboardPreference
+        bool match = query.equals("") || row.binding.name.toLower().contains(query) || row.binding.id.toLower().contains(query)
+        row.setVisible(match)
+        i = i + 1
+    }
+}
+
+// Cancel shortcut recording on every row before one row starts recording.
+//
+// Parameters: none.
+// Returns: Nothing.
+void Cdbg.prepareShortcutRecord() {
+    int64 i = 0
+    while (i < keyboardRows.length) {
+        (keyboardRows[i] as KeyboardPreference).cancelRecording()
+        i = i + 1
+    }
+}
+
+// Save keyboard bindings after a row accepts a new trigger.
+//
+// Parameters: none.
+// Returns: Nothing.
+void Cdbg.keyboardChanged() {
+    settings.shortcutRevision = settings.shortcutRevision + 1
+    rebindShortcuts()
+    saveSettings()
+}
+
+// Ask the user to confirm restoring default appearance.
+//
+// Parameters: none.
+// Returns: Nothing.
+void Cdbg.resetAppearancePreferences() {
+    resetSection = "appearance"
+    resetChoices.setVisible(true)
+}
+
+// Ask the user to confirm restoring default shortcuts.
+//
+// Parameters: none.
+// Returns: Nothing.
+void Cdbg.resetKeyboardPreferences() {
+    resetSection = "keyboard"
+    resetChoices.setVisible(true)
+}
+
+// Restore the section named by the confirmation and save it.
+//
+// Parameters: none.
+// Returns: Nothing.
+void Cdbg.confirmPreferencesReset() {
+
+    if (resetSection.equals("appearance")) {
+        settings.resetAppearance()
         refreshingPreferences = true
         fontEntry.setText(settings.fontFamily)
         sizeEntry.setText(format("{}", settings.fontSize))
         tabsEntry.setText(format("{}", settings.tabWidth))
         numbersCheck.setActive(settings.lineNumbers)
         refreshingPreferences = false
-        preferencesWindow.setVisible(true)
-        preferencesWindow.present()
-    }
-
-void Cdbg.showKeyboardPreferences() {
-        if (preferencesWindow == null) { createPreferences() }
-        sessionPreferences.setVisible(false)
-        appearancePreferences.setVisible(false)
-        keyboardPreferences.setVisible(true)
-        resetChoices.setVisible(false)
-        if (keyboardRows.length == 0) {
-            int64 i = 0
-            while (i < settings.commands.length) {
-                keyboardRows.append(KeyboardPreference(settings, settings.commands[i] as CommandBinding,
-                    _self().keyboardChanged, _self().prepareShortcutRecord, keyboardRowsBox, i))
-                i = i + 1
-            }
-        }
-        filterCommands("")
-        preferencesWindow.setVisible(true)
-        preferencesWindow.present()
-    }
-
-void Cdbg.appearanceSettingChanged(String text) {
-        appearanceChanged()
-    }
-
-void Cdbg.appearanceChanged() {
-        if (refreshingPreferences) { return }
-        String font = fontEntry.text().trim()
-        String problem = settings.fontError(font)
-        int64 size = sizeEntry.text().toInt64()
-        int64 tabs = tabsEntry.text().toInt64()
-        if (!problem.equals("")) {
-            preferencesMessage.setText(problem)
-            return
-        }
-        if (size < 6 || size > 72) {
-            preferencesMessage.setText("Font size must be between 6 and 72")
-            return
-        }
-        if (tabs < 1 || tabs > 16) {
-            preferencesMessage.setText("Tab width must be between 1 and 16")
-            return
-        }
-        settings.fontFamily = font
-        settings.fontSize = size
-        settings.tabWidth = tabs
-        preferencesMessage.setText("")
         applyAppearance()
         saveSettings()
     }
 
-void Cdbg.appearanceCheckChanged(bool active) {
-        if (refreshingPreferences) { return }
-        settings.lineNumbers = active
-        applyAppearance()
-        saveSettings()
-    }
-
-void Cdbg.commandSearchChanged(String text) { filterCommands(text) }
-
-void Cdbg.filterCommands(String text) {
-        String query = text.trim().toLower()
-        if (query.equals("") && commandSearch != null) {
-            query = commandSearch.text().trim().toLower()
-        }
+    if (resetSection.equals("keyboard")) {
+        settings.resetKeyboard()
         int64 i = 0
         while (i < keyboardRows.length) {
-            KeyboardPreference row = keyboardRows[i] as KeyboardPreference
-            bool match = query.equals("") || row.binding.name.toLower().contains(query) || row.binding.id.toLower().contains(query)
-            row.setVisible(match)
+            (keyboardRows[i] as KeyboardPreference).refresh()
             i = i + 1
         }
+        keyboardChanged()
     }
+    resetSection = ""
+    resetChoices.setVisible(false)
+}
 
-void Cdbg.prepareShortcutRecord() {
-        int64 i = 0
-        while (i < keyboardRows.length) {
-            (keyboardRows[i] as KeyboardPreference).cancelRecording()
-            i = i + 1
-        }
-    }
-
-void Cdbg.keyboardChanged() {
-        settings.shortcutRevision = settings.shortcutRevision + 1
-        rebindShortcuts()
-        saveSettings()
-    }
-
-void Cdbg.resetAppearancePreferences() {
-        resetSection = "appearance"
-        resetChoices.setVisible(true)
-    }
-
-void Cdbg.resetKeyboardPreferences() {
-        resetSection = "keyboard"
-        resetChoices.setVisible(true)
-    }
-
-void Cdbg.confirmPreferencesReset() {
-        if (resetSection.equals("appearance")) {
-            settings.resetAppearance()
-            refreshingPreferences = true
-            fontEntry.setText(settings.fontFamily)
-            sizeEntry.setText(format("{}", settings.fontSize))
-            tabsEntry.setText(format("{}", settings.tabWidth))
-            numbersCheck.setActive(settings.lineNumbers)
-            refreshingPreferences = false
-            applyAppearance()
-            saveSettings()
-        }
-        if (resetSection.equals("keyboard")) {
-            settings.resetKeyboard()
-            int64 i = 0
-            while (i < keyboardRows.length) {
-                (keyboardRows[i] as KeyboardPreference).refresh()
-                i = i + 1
-            }
-            keyboardChanged()
-        }
-        resetSection = ""
-        resetChoices.setVisible(false)
-    }
-
+// Hide the reset confirmation without changing settings.
+//
+// Parameters: none.
+// Returns: Nothing.
 void Cdbg.cancelPreferencesReset() {
-        resetSection = ""
-        resetChoices.setVisible(false)
-    }
+    resetSection = ""
+    resetChoices.setVisible(false)
+}
 
+// Write appearance and keyboard settings to the user config file.
+//
+// Parameters: none.
+// Returns: Nothing.
 void Cdbg.saveSettings() {
-        if (!settings.writable) {
-            preferencesMessage.setText(format("Settings not saved to {}: {}", settings.path, settings.errors))
-            return
-        }
-        String text = settings.serialize()
-        if (text.equals("") || text.length > 65536) {
-            preferencesMessage.setText("Settings snapshot exceeds its limit or cannot be serialized")
-            return
-        }
-        String error = Gtk.Config().saveNow(settings.path, text, settings.original)
-        if (!error.equals("")) {
-            preferencesMessage.setText(format("Settings not saved to {}: {}", settings.path, error))
-            return
-        }
-        settings.original = text
-        preferencesMessage.setText("")
-        settingsPathLabel.setText(format("Appearance and keyboard automatically saved to {}", settings.path))
+    if (!settings.writable) {
+        preferencesMessage.setText(format(
+                "Settings not saved to {}: {}",
+                settings.path,
+                settings.errors))
+        return
     }
+    String text = settings.serialize()
+    if (text.equals("") || text.length > 65536) {
+        preferencesMessage.setText(
+                "Settings snapshot exceeds its limit or cannot be serialized")
+        return
+    }
+    String error = Gtk.Config().saveNow(settings.path, text, settings.original)
+    if (!error.equals("")) {
+        preferencesMessage.setText(format(
+                "Settings not saved to {}: {}",
+                settings.path,
+                error))
+        return
+    }
+    settings.original = text
+    preferencesMessage.setText("")
+    settingsPathLabel.setText(format(
+            "Appearance and keyboard automatically saved to {}",
+            settings.path))
+}
 
+// Push the saved font, size, tabs, and line numbers into every source view.
+//
+// Parameters: none.
+// Returns: Nothing.
 void Cdbg.applyAppearance() {
-        list views = [source, locals, stack, watches, breaks, console, programOutput, runtimeValues]
-        if (setupEnv != null) { views.append(setupEnv) }
-        int64 i = 0
-        while (i < sourceFiles.length) {
-            views.append((sourceFiles[i] as DebugSource).view)
-            i = i + 1
-        }
-        i = 0
-        while (i < views.length) {
-            GtkSource.View view = views[i] as GtkSource.View
-            if (view != null) {
-                bool numbers = settings.lineNumbers
-                if (view == locals || view == stack || view == watches || view == breaks ||
-                    view == console || view == programOutput || view == runtimeValues ||
+    list views = [
+            source,
+            locals,
+            stack,
+            watches,
+            breaks,
+            console,
+            programOutput,
+            runtimeValues]
+    if (setupEnv != null) {
+        views.append(setupEnv)
+    }
+    int64 i = 0
+    while (i < sourceFiles.length) {
+        views.append((sourceFiles[i] as DebugSource).view)
+        i = i + 1
+    }
+    i = 0
+
+    while (i < views.length) {
+
+        GtkSource.View view = views[i] as GtkSource.View
+        if (view != null) {
+            bool numbers = settings.lineNumbers
+            if (view == locals || view == stack || view == watches
+                    || view == breaks ||
+                    view == console || view == programOutput
+                    || view == runtimeValues ||
                     view == setupEnv) {
-                    numbers = false
-                }
-                view.configure(settings.fontFamily, settings.fontSize, settings.tabWidth, true,
-                    numbers, false, true)
+                numbers = false
             }
-            i = i + 1
+            view.configure(
+                    settings.fontFamily,
+                    settings.fontSize,
+                    settings.tabWidth,
+                    true,
+                    numbers,
+                    false,
+                    true)
         }
+
+        i = i + 1
     }
 
+}
+
+// Reload settings after a save and refresh appearance, shortcuts, and the
+// preferences message.
+//
+// Parameters: none.
+// Returns: Nothing.
 void Cdbg.settingsChanged() {
-        applyAppearance()
-        rebindShortcuts()
-        saveSettings()
-    }
+    applyAppearance()
+    rebindShortcuts()
+    saveSettings()
+}

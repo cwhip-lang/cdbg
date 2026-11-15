@@ -1,3 +1,14 @@
+/*
+ * src/cdbg.cw — Debugger class, fields, and program entry.
+ *
+ * Created: 2026-10-13
+ * Author: Charles Tilbury
+ *
+ * Changelog:
+ *   2026-10-13  Initial debugger prototype.
+ *   2026-11-15  Apply the Cwhip coding standard.
+ */
+
 import gtk
 import sourceview
 import system
@@ -9,6 +20,10 @@ include "commandBinding.cw"
 include "cdbgSettings.cw"
 include "keyboardPreference.cw"
 
+// GTK debugger window and GDB/MI session. The class holds the widgets, the
+// target, and the request queue. Method bodies live in the included modules,
+// and each one is documented there. Members stay in public: because start and
+// the compiled test drivers call them from outside the class.
 class Cdbg {
     public:
     Cdbg _self()
@@ -30,7 +45,8 @@ class Cdbg {
     String sourceText
     int64 toggleBreakItem
     int64 toggleEnableItem
-    // Session page controls inside Preferences (kept names for the UI fixture).
+    // Session page controls inside Preferences (kept names for the UI
+    // fixture).
     Gtk.CheckButton setupStart
     Gtk.Entry setupArguments
     Gtk.Entry setupCwd
@@ -207,6 +223,12 @@ class Cdbg {
     String inferiorPid
     int64 stopCount
 
+    // Set the session lists, flags, and text fields to the values a new
+    // debugger uses before the window exists. Appearance comes from the
+    // settings file.
+    //
+    // Parameters: none.
+    // Returns: Nothing.
     Cdbg() {
         settings = CdbgSettings()
         requests = []
@@ -372,7 +394,11 @@ class Cdbg {
 
     bool runtimePrologue(String func)
 
-    bool skipRuntimeStop(String path, String func, String position, String reason)
+    bool skipRuntimeStop(
+            String path,
+            String func,
+            String position,
+            String reason)
 
     bool skipSameLineStop(String position, String reason)
 
@@ -538,8 +564,12 @@ class Cdbg {
 
     void syncViewMenuChecks()
 
-    void syncPage(Gtk.Notebook notebook, Gtk.ScrolledWindow item, String title, bool want,
-                  bool attached)
+    void syncPage(
+            Gtk.Notebook notebook,
+            Gtk.ScrolledWindow item,
+            String title,
+            bool want,
+            bool attached)
 
     void syncInspectionPages()
 
@@ -646,12 +676,16 @@ include "cdbgUi.cw"
 include "cdbgLayout.cw"
 include "cdbgPreferences.cw"
 
+// Return this debugger as the callback receiver the GTK bindings require.
+//
+// Parameters: none.
+// Returns: This Cdbg instance.
 Cdbg Cdbg._self() from "cwhip_gtk_self"
 
 start {
     Cli.CommandLine commandLine = Cli.CommandLine("cdbg",
-        "Local GDB/MI GTK debugger. Sources compile with -g. No LLDB, remote, or attach.",
-        "0.1.0")
+            "Local GDB/MI GTK debugger. Sources compile with -g. No LLDB, remote, or attach.",
+            "0.1.0")
     commandLine.setCaptureRemainder(true)
     Cli.Option help = Cli.Option()
     help.longName = "help"
@@ -665,7 +699,8 @@ start {
     commandLine.addPositional(targetPos)
     try {
         commandLine.parseArgv()
-    } except() as error {
+    }
+    except() as error {
         // Keep the stdlib wording so apps share one CLI look.
         DebugDiagnostic().emit("error", "CDBG0001", format("{}", error))
         System.Process().exit(2)
@@ -680,7 +715,9 @@ start {
         target = positionals[0] as String
         if (!System.FileSystem().isFile(target)) {
             DebugDiagnostic().emit("error", "CDBG1001",
-                format("Target is not a local file: {}; choose an existing source or executable file", target))
+                    format(
+                    "Target is not a local file: {}; choose an existing source or executable file",
+                    target))
             System.Process().exit(1)
         }
     }
