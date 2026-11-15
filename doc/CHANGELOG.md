@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Mark cdbg class members `public:` so the debugger and its compiled test
+  drivers build with cwhip's private-by-default member access.
 - Add `.gitattributes` so GitHub does not label `.cw` files as RedCode.
 - Point repository links at the `cwhip-lang` GitHub organization.
 - Parse target/`--` remainder argv through the SDK `cli` 0.1.0 package.

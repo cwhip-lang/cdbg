@@ -1,4 +1,5 @@
 class CommandBinding {
+    public:
     String id
     String name
     String defaultTrigger

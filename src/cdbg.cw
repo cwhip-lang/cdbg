@@ -10,6 +10,7 @@ include "cdbgSettings.cw"
 include "keyboardPreference.cw"
 
 class Cdbg {
+    public:
     Cdbg _self()
     CdbgSettings settings
     Gtk.Window window

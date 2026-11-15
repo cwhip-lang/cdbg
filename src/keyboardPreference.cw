@@ -1,4 +1,5 @@
 class KeyboardPreference {
+    public:
     KeyboardPreference _self()
     CommandBinding binding
     CdbgSettings settings
