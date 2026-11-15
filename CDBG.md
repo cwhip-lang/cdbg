@@ -132,8 +132,9 @@ is no match.
 `CDBG_COMPILER` can select a compiler (otherwise cdbg first tries its sibling
 `cwhip`, then PATH); `CDBG_GDB` can select the GDB executable (default `gdb` on
 PATH). The compiler's existing package discovery and project lock rules apply.
-GDB runs with user init files and auto-load scripts disabled. Programs are
-launched in cdbg's current working directory.
+GDB runs with user init files and auto-load scripts disabled. GDB is spawned
+in cdbg's current working directory. A non-empty Session working directory
+changes the inferior's directory before the program runs, as described below.
 
 ## Controls and inspection
 
@@ -143,17 +144,25 @@ launched in cdbg's current working directory.
    breakpoint when none exists there, otherwise clears its breakpoint(s).
    **Breakpoint > Enable/Disable Breakpoint** (Ctrl+F9) toggles their enabled
    state; if no breakpoint exists at the line, the status says so.
-   Both commands use the cursor line of the active source tab, require a loaded,
-   paused target and use MI-quoted file:line locations. The menu items are
-   disabled without a ready target/source; shortcuts explain unavailable actions
-   in the status line. For the example above, line 10 stops before the method call.
+   Both commands use the cursor line of the active source tab and MI-quoted
+   file:line locations. They are available when a target is loaded, the
+   inferior is not running, no MI command is queued or in flight, and a
+   source tab is current. F9 sets a breakpoint on a loaded program that has
+   not been started. The menu items are disabled without a ready target/source;
+   shortcuts explain unavailable actions in the status line. For the example
+   above, line 10 stops before the method call.
    Multi-location breakpoint actions affect the parent breakpoint and all its
    locations. If GDB relocates a non-executable line to nearby code, toggling
    again at the original requested line still clears that breakpoint.
-   The **Breakpoints** tab lists each breakpoint as
-   `#N enabled|disabled installed file:line in FUNCTION hits COUNT`, with
-   `pending … (not yet installed)` for locations GDB could not yet resolve and
-   `(multiple locations)` for multi-location parents. GDB errors (for example
+   The **Breakpoints** tab lists an ordinary breakpoint as
+   `#N enabled|disabled installed file:line in FUNCTION hits COUNT`. A
+   condition appends ` if COND`, and an ignore count greater than zero
+   appends ` ignore N`. A location GDB has not resolved is
+   `#N enabled|disabled pending … (not yet installed)`. A multi-location
+   parent shows `(multiple locations)` in place of `file:line`. A temporary
+   breakpoint, including Break at start, is a different line:
+   `#N start (temporary) file:line in FUNCTION`. Break at start is on by
+   default, so that is the entry breakpoint's line. GDB errors (for example
    "No compiled code" for a line without code) appear in the status line,
    Debugger Console and stderr. When the program exits, each enabled breakpoint
    whose hit count did not change during that run is listed in the Debugger
@@ -197,15 +206,23 @@ launched in cdbg's current working directory.
    shell: whitespace separates words, `'…'` is literal, `"…"` allows `\"`,
    `\\`, `\$` and `` \` `` escapes, an unquoted backslash escapes the next
    character, and `''` or `""` is an empty argument. Each argument is MI-quoted
-   separately for `-exec-arguments`. Empty cwd uses cdbg's current directory;
-   a non-empty cwd must exist and is sent with `-environment-cd` before
-   `-exec-run`. Environment pairs use `-gdb-set environment KEY VALUE`, with the
-   value MI-quoted (GDB 16+ dropped `-environment-set-variable`; no unset in
-   v1). Malformed input is reported in the dialog and leaves previous Session
-   values unchanged. Apply never restarts a running program; the settings take
-   effect at the next Run from a not-started target, Restart or Load. Cancel
-   changes nothing. With no target loaded, Apply sets this directory's default
-   Break at start (arguments/cwd/env require a target).
+   separately for `-exec-arguments`. A non-empty cwd must exist and is sent
+   with `-environment-cd` before `-exec-run`. An empty cwd sends no directory
+   command, so a new GDB process leaves the inferior in cdbg's current
+   directory, the directory GDB was spawned in. Environment pairs still in the list
+   use `-gdb-set environment KEY VALUE`, with the value MI-quoted (GDB 16+
+   dropped `-environment-set-variable`). Clearing the
+   working directory, or deleting a variable, does not restore the spawn
+   directory or remove a variable already set in this GDB. Malformed input
+   is reported in the dialog and leaves previous Session values unchanged.
+   Apply never restarts a running program. Adds and changes take effect at
+   the next Run from a not-started target (including a Run after the
+   inferior has exited) and at Restart. A prebuilt Restart, and that later
+   Run, reuse the same GDB, so a cleared directory or a deleted variable
+   stays. Load, and Restart of a `.cw` file, start a new GDB process, which
+   drops those settings. Cancel changes nothing. With no target loaded,
+   Apply sets this directory's default Break at start (arguments/cwd/env
+   require a target).
    **Appearance** (font, size, tab width, source line numbers) and **Keyboard**
    (searchable Record/Reset/Disable bindings) auto-save to
    `$XDG_CONFIG_HOME/cwhip/cdbg.toml`. Keyboard lists View panel commands with
@@ -281,9 +298,13 @@ optimized-out/unavailable values and out-of-scope expressions are reported
 explicitly. Reads are bounded to 256 bytes per string/buffer, eight children
 per container, two container levels and 64 locals; raw formatting is bounded
 to eight elements/two levels and 4096 characters per value. Truncation is
-marked. Watches support read-only identifiers, member/index access and
-arithmetic, not calls, assignments or increment/decrement. This is GDB's
-expression syntax, not a full Cwhip expression evaluator.
+marked. That 4096-character bound is the displayed raw value. The Add Watch
+dialog separately accepts an expression of at most 4096 bytes, and at most
+64 watches. Before GDB parses a watch, the evaluator rejects more than 1024
+bytes or any character outside `[\w\s.+*/%<>&|^!~()\[\]-]`. Quotes, commas,
+and `=` never reach GDB, so string literals and comparisons such as `==` are
+rejected. A further check rejects `++`, `--`, a call, a `(` after `)` or
+`]`, and a pointer cast. The accepted watch text is that character class.
 
 The inspector is embedded in cdbg and requires Python-enabled GDB with
 `gdb.MICommand` (validated with GDB 16.3). If unavailable, the Debugger Console
@@ -433,13 +454,15 @@ clamped; invalid saved arguments are ignored with a diagnostic.
 Only local launch is supported: no remote debugging, attach, DAP, LLDB,
 multitarget sessions, disassembly or register view yet. The Threads pane is
 browse/select only (`-thread-info` / `-thread-select`); there is no thread
-create or control UI. Session Preferences can set inferior working directory
-and environment variables for the next run; unsetting variables is not
-supported. Inferior interactive stdin/terminal emulation is not provided: the
-output PTY supplies no user input, so programs waiting on stdin must be
-paused/ended. The stack view is capped at 31 frames. Watches use the read-only
-subset of GDB expressions described above; calls and mutations are rejected and
-inferior function calls are disabled in the session.
+create or control UI. Session Preferences can add or change the inferior
+working directory and environment variables for the next run. Unsetting a
+variable is not supported, and a cleared directory or a deleted variable
+stays until a new GDB process starts. Inferior interactive stdin/terminal
+emulation is not provided: the output PTY supplies no user input, so
+programs waiting on stdin must be paused/ended. The stack view is capped at
+31 frames. Watches use the character class and checks described above;
+calls, casts, and mutations are rejected and inferior function calls are
+disabled in the session.
 
 cdbg provides bounded String/container/class field summaries, not an expandable
 object tree. Watch expressions and breakpoints for the current target are
