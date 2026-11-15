@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Correct `CDBG.md` and `doc/CODING.md` where they disagreed with the
+  debugger and with `cwhip-format`: Session directory and environment
+  removals, watch expression limits, breakpoint readiness and tab
+  lines, an 80-column limit, and hash and slash comment reflow. Drop
+  links to files this repository does not contain.
 - Align `doc/CODING.md` with the shared Cwhip standard: spacing,
   long-call and dict wraps, block indents, and
   `NewlineBeforeCloseBrace`. The cdbg-only section is unchanged.

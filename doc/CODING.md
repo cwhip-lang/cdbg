@@ -26,9 +26,11 @@ those rules do not conflict with this document.
 - A comment-only line, `case`, `default`, a `{` on its own line, and
   `except`, `finally`, and `from` when they start a line use the
   block indent.
-- Line length should be kept to less than 80 characters to allow clean
-  editing on a console.
-- Reflow all comments to the column limit.
+- Keep lines to the preferred length of 80 columns (`ColumnLimit`).
+  A line of 80 columns is within the limit. A longer line stays when
+  it has no legal break.
+- Reflow `#` and `//` comments to that column limit. Leave `/* */`
+  block comments as written (`ReflowBlockComments` is false).
 - Put a blank line before and after a control statement longer than
   10 lines. When variables are defined for a test or a loop, keep
   those definitions inside the blank-line boundary, with the
@@ -131,8 +133,6 @@ carry the narrative humans need to read it.
 - All testing goes through **CTest**.
 - Keep tests as small as practical; treat them as example code when
   practical.
-- [PLAN.md](PLAN.md) still owns broader test-suite shape and work
-  order; this section locks placement and delivery rules.
 
 ## FFI
 
@@ -142,55 +142,10 @@ carry the narrative humans need to read it.
 
 ## User-facing binaries and argv
 
-Operator-facing executables (`cplanets-server`, `cplanets`,
-`cplanets-ai`, `cplanets-tick`, and any later user tools) must parse
-argv with the Cwhip stdlib `cli` package (`import cli as Cli`).
-Include generated help via `-h` / `--help` (`Action.HELP` and
-`helpText()`). Do not hand-roll flag loops for those programs. Unit
-and fn test programs are exempt unless migration is trivial.
-
-- `--config PATH` is optional on `cplanets-server`, `cplanets`, and
-  `cplanets-ai`. If it is omitted, ensure and load
-  `~/.config/cplanets/…`. `cplanets-tick` still requires `--config`.
-- If `--config` is present but the path is empty, print the same help
-  text as `-h` / `--help` and exit **2** (usage). Explicit `-h` /
-  `--help` still exits **0**.
-- Every other parameter must be settable as a default in that file.
-  Load the file first. Any flag present on argv (`wasProvided`)
-  overrides the file value silently (no warning).
-- Mode flags follow the same rule. The file stores `true` / `false`.
-  Presence on argv forces the switch on.
-- `--config` itself has no in-file key.
-- The server uses one unified `config/server-*.cfg`. That file holds
-  process and network settings and the §14 scenario knobs
-  ([SERVER-CONFIG.md](SERVER-CONFIG.md)).
-- Legacy `setup=` / `--setup` / `spawn_ai_count` /
-  `spawn_ai_template` are rejected and removed.
-- An explicit `--config` that cannot be opened is a hard error (no
-  silent builtin).
-- AI, human, and tick keep their own `--config` surfaces.
-  `config/tick-default.cfg` is a placeholder until advance-N.
-- Key catalogs: [SERVER-CONFIG.md](SERVER-CONFIG.md),
-  [AI-CLIENT-CONFIG.md](AI-CLIENT-CONFIG.md),
-  [HUMAN-CLIENT-CONFIG.md](HUMAN-CLIENT-CONFIG.md).
-- XDG defaults for the server, human, and AI are implemented
-  (CPL-115).
-
-Headless operator programs that emit decision or settings logs use
-one pattern:
-
-- The text file key is `verbosity = N` (default `0`). CLI
-  `--verbosity N` overlays the file when `wasProvided("verbosity")`.
-- The scale is **0–10**. Out-of-range values clamp (not reject).
-- Level `0` is errors-only for optional lines. Higher levels open
-  provisional categories (server: settings about 3, combat about 6,
-  full about 10; AI: decisions about 3, full about 10).
-- Thresholds will firm up over time. Do not invent log spam under
-  reserved bands.
-- Server and AI share the flag and key name. Log payloads differ
-  (combat versus seat, policy, and cycle).
-- Server verbosity defaults live in the server config. They are
-  copied onto `Scenario.verbosity` at serve start.
+`cdbg` parses argv with the Cwhip stdlib `cli` package
+(`import cli as Cli`). `-h` / `--help` uses `Action.HELP` and
+`helpText()`. `cdbg` does not accept `--config` or `--verbosity`.
+Command-line behavior is documented in `CDBG.md`.
 
 ## Formatter defaults
 
@@ -291,8 +246,6 @@ PreserveBlockCommentNewlines: true
 ```
 
 ## Out of scope
-
-Not done here. See [PLAN.md](PLAN.md) for work order.
 
 - Mass-apply these rules across all proof-of-concept applications.
   Per-app `CODING.md` copies that do not conflict with the rules
