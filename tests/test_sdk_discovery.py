@@ -580,11 +580,25 @@ class SdkDiscoveryTest(unittest.TestCase):
         self.assertTrue((self.build / "Makefile").is_file())
         source = self.project / "src/cdbg.cw"
         before = source.read_bytes()
+        # An installed SDK often puts cwhip-format on PATH. The missing-tool
+        # check has to ignore that binary and still report that the target
+        # cannot find cwhip-format.
+        installed = self.root / "installed-sdk" / "bin"
+        installed.mkdir(parents=True)
+        decoy = installed / "cwhip-format"
+        decoy.write_text("#!/bin/sh\nprintf 'installed formatter\\n'\nexit 0\n")
+        decoy.chmod(0o755)
+        self.env["PATH"] = (
+            f"{self.tools}{os.pathsep}{installed}{os.pathsep}{self.env['PATH']}"
+        )
+        missing_env = self.env.copy()
+        missing_env["PATH"] = f"/usr/bin{os.pathsep}/bin"
         missing = subprocess.run(
-            ["make", "format"], cwd=self.build, env=self.env,
+            ["make", "format"], cwd=self.build, env=missing_env,
             capture_output=True, text=True, timeout=60)
         self.assertNotEqual(missing.returncode, 0, missing.stdout + missing.stderr)
         self.assertIn("cwhip-format was not found", missing.stdout + missing.stderr)
+        self.assertNotIn("installed formatter", missing.stdout + missing.stderr)
         self.assertEqual(source.read_bytes(), before)
 
         record = self.root / "format-record.txt"

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Keep the format discovery check from treating `cwhip-format` on the
+  ambient `PATH` as a missing tool. An installed SDK provides that program.
 - Add a `format` target that runs `cwhip-format -i` on the repository's
   `.cw` files and skips the build directory.
 - Apply the shared Cwhip coding standard in `doc/CODING.md`: file
