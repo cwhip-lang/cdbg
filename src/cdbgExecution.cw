@@ -228,11 +228,12 @@ bool Cdbg.skipRuntimeStop(String path, String func, String position, String reas
         return(true)
     }
 
-// Step Over can stop again on the same file:line at a later PC (for example
-// after returning to a call site mid-line). Continue nexting until the
-// source line changes so one toolbar press matches one statement.
+// Step Over on a Cwhip session can stop again on the same file:line at a
+// later PC (for example after returning to a call site mid-line). Continue
+// nexting until the source line changes so one toolbar press matches one
+// statement. Pure C sessions keep every stop.
 bool Cdbg.skipSameLineStop(String position, String reason) {
-        if (skipSameLineLeft <= 0) { return(false) }
+        if (skipSameLineLeft <= 0 || !preferCwhipStops) { return(false) }
         if (!reason.equals("end-stepping-range")) {
             skipSameLineLeft = 0
             return(false)

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Absorb extra same-line Step Over stops only in a Cwhip session. A pure C
+  session keeps every stop.
+- Mark `examples/debugger.cw` members `public:` so the documented
+  `cdbg ../examples/debugger.cw` launch compiles.
 - Dispose every transient window while the main window is still alive so
   shutdown does not disconnect signals on a destroyed parent.
 - Ask GUI tests for software GL. Mesa still probes DRI3 under the cairo
@@ -21,7 +25,7 @@
 - Breakpoints: Edit Condition… and Hit Count… (ignore count); persist
   `condition` / `hit_count` on saved points and restore via MI.
 - Session Preferences: optional inferior working directory and `KEY=VALUE`
-  environment lines (Apply → `-environment-cd` / `-environment-set-variable` on
+  environment lines (Apply → `-environment-cd` / `-gdb-set environment` on
   the next Run/Restart/Load; persisted per target in `.cdbg.toml`).
 - Clarify Session Preferences / View-keyboard docs after the multi-pane layout
   and Preferences work; refresh fixture comments for inspection notebooks.

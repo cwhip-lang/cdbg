@@ -37,8 +37,12 @@ addition to version `0.0.2` and ABI `numeric-v2`.
 `cdbg [SOURCE.cw|EXECUTABLE [-- ARGS...]]` opens the GUI in the foreground;
 arguments after the target are passed individually to the inferior, without a
 shell. Command-line arguments override the target's saved Session arguments for
-that command-line session (including Restart) but are not saved; applying Session
-Preferences replaces them, and a later File > Load Executable uses the saved arguments.
+the initial launch of that command-line session and are not saved. Restart of a
+prebuilt executable keeps that in-memory list. Restart of a `.cw` file recompiles
+and loads the target again, which restores the saved Session arguments, so the
+command-line override does not survive that Restart. Applying Session
+Preferences replaces the in-memory list, and a later File > Load Executable uses
+the saved arguments.
 A `.cw` command-line target is compiled
 asynchronously using `cwhip -g` to an owned temporary executable. Compilation
 failure summaries appear in a parented modal dialog, the status line, Debugger
@@ -53,7 +57,8 @@ session ends or the window closes.
 `cdbg` incrementally follows the shared
 [Cwhip diagnostics contract](https://github.com/cwhip-lang/cwhip/blob/master/doc/DIAGNOSTICS.md):
 `cdbg: severity[CODE]: explanation`. Diagnostics go to stderr, and `--help`
-goes to stdout via the shared stdlib `cli` `helpText()`. Output is plain text,
+goes to stdout via the shared stdlib `cli` `helpText()`. `CDBG2002` is shown
+only in the preferences window and is not written to stderr. Output is plain text,
 including when redirected or `NO_COLOR` is set. Unknown options and unexpected
 positionals exit with status 2 using stdlib wording (`unknown option: …`,
 `unexpected positional argument: …`). `--help` ignores trailing argv; a bare
@@ -75,6 +80,7 @@ described below; this is not a transactional rollback to an earlier GDB session.
 | `CDBG1000` | Operation rejected in the current debug state |
 | `CDBG1001` | Target/source file loading or reading |
 | `CDBG2001` | Saved-state read, validation, restore or save warning (includes settings path) |
+| `CDBG2002` | Appearance/keyboard settings load error, shown only in the preferences window (includes settings path; not written to stderr) |
 | `CDBG3001` | Compiler startup, temporary build directory or compilation failure |
 | `CDBG3002` | GDB startup, command rejection or unexpected session exit |
 | `CDBG3003` | Program-output PTY or GDB input transport |
@@ -178,9 +184,10 @@ launched in cdbg's current working directory.
    Pure C sessions keep every stop. **File >
    Load Executable…** ends the old GDB process group and starts a fresh session.
    **Restart** stops the current inferior and runs again from the beginning,
-   preserving breakpoints, watches and arguments. When the session target is a
+   preserving breakpoints and watches. A prebuilt executable keeps the in-memory
+   argument list and restarts without rebuilding. When the session target is a
    `.cw` file, Restart recompiles with `cwhip -g` into the temporary executable
-   first, then relaunches; prebuilt executables restart without rebuilding.
+   first, then relaunches and restores the saved Session arguments.
 3. **Edit > Preferences…** (Ctrl+comma) opens a cedit-style preferences window
    with **Session**, **Appearance** and **Keyboard** categories.
    **Session** keeps **Break at start** (on by default for a new configuration),
@@ -192,7 +199,8 @@ launched in cdbg's current working directory.
    character, and `''` or `""` is an empty argument. Each argument is MI-quoted
    separately for `-exec-arguments`. Empty cwd uses cdbg's current directory;
    a non-empty cwd must exist and is sent with `-environment-cd` before
-   `-exec-run`. Environment pairs use `-environment-set-variable` (no unset in
+   `-exec-run`. Environment pairs use `-gdb-set environment KEY VALUE`, with the
+   value MI-quoted (GDB 16+ dropped `-environment-set-variable`; no unset in
    v1). Malformed input is reported in the dialog and leaves previous Session
    values unchanged. Apply never restarts a running program; the settings take
    effect at the next Run from a not-started target, Restart or Load. Cancel
@@ -317,7 +325,9 @@ close icon. Closing a tab never ends the debug session; if execution later stops
 in a closed file, its tab is reopened (once).
 The highlighted stopped line is centered vertically where the buffer allows;
 stepping in the same file reuses its buffer rather than reloading/re-scrolling
-the entire file. Load Executable reloads source contents; **Restart** retains them.
+the entire file. Load Executable reloads source contents. Restart of a prebuilt
+executable retains those buffers. Restart of a `.cw` file clears them and reads
+the source again.
 Source and inspector panes are read-only, retain text selection/copy, and omit
 Insert Emoji from their right-click menus.
 

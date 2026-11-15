@@ -141,8 +141,9 @@ class Cdbg {
     int64 skipRuntimeLeft
     int64 skippedRuntimeFrames
     String skipOrigin
-    // After Step Over, GDB can stop again on the same source line at a later
-    // PC (mid-line after a call return). Keep nexting until the line changes.
+    // After Step Over on a Cwhip session, GDB can stop again on the same
+    // source line at a later PC (mid-line after a call return). Keep nexting
+    // until the line changes. Pure C sessions keep every stop.
     int64 skipSameLineLeft
     int64 skippedSameLineStops
     // Newly opened source tabs are not allocated yet; center/focus after idle.
