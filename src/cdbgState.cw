@@ -100,7 +100,8 @@ bool Cdbg.savedFlag(String table, String key, bool fallback) {
 
 // Per-target setup: Break at start defaults to the directory default
 // (true for a new configuration). Command-line arguments after -- override
-// saved arguments for that command-line session only and are not saved.
+// saved arguments for this load only and are not saved. A .cw Restart
+// loads the target again and restores the saved arguments.
 void Cdbg.loadTargetSettings() {
         breakAtStart = savedFlag("", "break_at_start", settings.defaultBreakAtStart)
         targetSettings = false

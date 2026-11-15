@@ -205,7 +205,9 @@ The shell exports `_PROJECT_NAME`, `_PROJECT_LOC`, `_BUILD_TYPE` and the
 effective `CWHIP_BUILD_TYPE` read from the configured CMake cache.
 Its project-root Git helpers are `status`, `add` (defaults to `add .`), `commit` and `push`; `all`
 explicitly runs `add -A`, `commit` and `push` in sequence, and `dbg` invokes
-`cdbg`. Arguments are passed through. Customize these project-owned files as
+`cdbg` and passes arguments through. With no arguments, `dbg` prints
+`Usage: dbg [SOURCE.cw|EXECUTABLE [-- ARGS...]]` on stderr and returns 2;
+`cdbg` with no arguments opens the GUI. Customize these project-owned files as
 needed. Starting the shell never runs Git mutations, downloads dependencies or
 writes user rc files; any commands in your own `.bashrc` remain user-controlled.
 Exit returns to the original shell without changing its environment.
