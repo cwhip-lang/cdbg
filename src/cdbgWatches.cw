@@ -1,150 +1,267 @@
+/*
+ * src/cdbgWatches.cw — Watches, stack selection, and Session Apply.
+ *
+ * Created: 2026-10-30
+ * Author: Charles Tilbury
+ *
+ * Changelog:
+ *   2026-10-30  Split debugger methods into modules.
+ *   2026-11-15  Apply the Cwhip coding standard.
+ */
+
+// Show the Add Watch dialog with an empty expression.
+//
+// Parameters: none.
+// Returns: Nothing.
 void Cdbg.showWatch() {
-        watchMenu.setVisible(false)
-        watchEntry.setText("")
-        watchStatus.setText("")
-        watchWindow.setVisible(true)
-        watchWindow.present()
-        watchEntry.focus()
-    }
-void Cdbg.closeWatch() { watchWindow.setVisible(false) }
-bool Cdbg.watchCloseRequested() { closeWatch()
-        return(true) }
+    watchMenu.setVisible(false)
+    watchEntry.setText("")
+    watchStatus.setText("")
+    watchWindow.setVisible(true)
+    watchWindow.present()
+    watchEntry.focus()
+}
+// Hide the Add Watch dialog without adding an expression.
+//
+// Parameters: none.
+// Returns: Nothing.
+void Cdbg.closeWatch() {
+    watchWindow.setVisible(false)
+}
+// Hide the Add Watch dialog when its window is closed.
+//
+// Parameters: none.
+// Returns: True so the window is allowed to close.
+bool Cdbg.watchCloseRequested() {
+    closeWatch()
+    return(true)
+}
 
-// Apply never restarts a running program: arguments, cwd, env and Break at
-// start take effect on the next Run (from not started), Restart or Load.
+// Store the Session page's arguments, working directory, environment, and
+// break-at-start flag. Apply does not restart a running program; the values
+// take effect on the next Run, Restart, or Load.
+//
+// Parameters: none.
+// Returns: Nothing.
 void Cdbg.applySetup() {
-        ArgumentList parsed = ArgumentList()
-        if (!parsed.parse(setupArguments.text())) {
-            String message = format("Invalid arguments: {}; previous arguments kept", parsed.error)
-            setupStatus.setText(message)
-            status.setText(message)
-            return
-        }
-        EnvironmentList env = EnvironmentList()
-        if (!env.parse(setupEnv.text())) {
-            String message = format("Invalid environment: {}; previous environment kept", env.error)
-            setupStatus.setText(message)
-            status.setText(message)
-            return
-        }
-        String cwd = setupCwd.text().trim()
-        if (!cwd.equals("")) {
-            String absolute = System.FileSystem().absolutePath(cwd)
-            if (absolute.equals("")) { absolute = cwd }
-            if (!System.FileSystem().isDir(absolute)) {
-                String message = format("Working directory must be an existing directory: {}", cwd)
-                setupStatus.setText(message)
-                status.setText(message)
-                return
-            }
-            cwd = absolute
-        }
-        if (stateTarget.equals("") && (parsed.values.length > 0 || env.pairs.length > 0 ||
-            !cwd.equals(""))) {
-            setupStatus.setText("Load a target before setting program arguments, cwd or environment")
-            return
-        }
-        breakAtStart = setupStart.active()
-        arguments = parsed.values
-        argumentText = parsed.display(parsed.values)
-        sessionCwd = cwd
-        environmentPairs = env.pairs
-        environmentText = env.display(env.pairs)
-        setupCwd.setText(sessionCwd)
-        setupEnv.setText(environmentText)
-        String message = "Session applied; takes effect on the next Run, Restart or Load"
-        if (running) {
-            message = "Session applied; the running program is unchanged; takes effect on the next Run, Restart or Load"
-        }
-        if (stateTarget.equals("")) { defaultChanged = true }
-        else { targetSettings = true }
-        if (!breakAtStart && !startBreakpoint.equals("") && loaded && !running) {
-            enqueue(format("-break-delete {}", startBreakpoint), "break", "")
-            startBreakpoint = ""
-        }
-        saveState(false)
-        if (!stateError.equals("")) { message.append(format("; settings NOT saved: {}", stateError)) }
-        else { message.append(format("; saved to {}", statePath)) }
+    ArgumentList parsed = ArgumentList()
+    if (!parsed.parse(setupArguments.text())) {
+        String message = format(
+                "Invalid arguments: {}; previous arguments kept",
+                parsed.error)
+        setupStatus.setText(message)
         status.setText(message)
-        log(format("{}\n", message))
-        closeSetup()
+        return
+    }
+    EnvironmentList env = EnvironmentList()
+    if (!env.parse(setupEnv.text())) {
+        String message = format(
+                "Invalid environment: {}; previous environment kept",
+                env.error)
+        setupStatus.setText(message)
+        status.setText(message)
+        return
     }
 
-// Clearing only discards displayed history; the program keeps running and
-// later output is appended as usual.
-void Cdbg.clearOutput() {
-        outputMenu.setVisible(false)
-        programOutput.setText("")
-        status.setText("Program Output cleared")
-    }
-
-void Cdbg.copyOutput() {
-        outputMenu.setVisible(false)
-        if (!programOutput.hasSelection()) {
-            status.setText("Select Program Output text to copy")
+    String cwd = setupCwd.text().trim()
+    if (!cwd.equals("")) {
+        String absolute = System.FileSystem().absolutePath(cwd)
+        if (absolute.equals("")) {
+            absolute = cwd
+        }
+        if (!System.FileSystem().isDir(absolute)) {
+            String message = format(
+                    "Working directory must be an existing directory: {}",
+                    cwd)
+            setupStatus.setText(message)
+            status.setText(message)
             return
         }
-        programOutput.copy()
-        status.setText("Copied Program Output selection")
+        cwd = absolute
     }
 
+    if (stateTarget.equals("") && (parsed.values.length > 0
+            || env.pairs.length > 0 ||
+            !cwd.equals(
+            ""))) {
+        setupStatus.setText(
+                "Load a target before setting program arguments, cwd or environment")
+        return
+    }
+    breakAtStart = setupStart.active()
+    arguments = parsed.values
+    argumentText = parsed.display(parsed.values)
+    sessionCwd = cwd
+    environmentPairs = env.pairs
+    environmentText = env.display(env.pairs)
+    setupCwd.setText(sessionCwd)
+    setupEnv.setText(environmentText)
+    String message = "Session applied; takes effect on the next Run, Restart or Load"
+    if (running) {
+        message = "Session applied; the running program is unchanged; takes effect on the next Run, Restart or Load"
+    }
+    if (stateTarget.equals("")) {
+        defaultChanged = true
+    }
+        else {
+        targetSettings = true
+    }
+    if (!breakAtStart && !startBreakpoint.equals("") && loaded && !running) {
+        enqueue(format("-break-delete {}", startBreakpoint), "break", "")
+        startBreakpoint = ""
+    }
+    saveState(false)
+    if (!stateError.equals("")) {
+        message.append(format("; settings NOT saved: {}", stateError))
+    }
+        else {
+        message.append(format("; saved to {}", statePath))
+    }
+    status.setText(message)
+    log(format("{}\n", message))
+    closeSetup()
+}
+
+// Clear the Program Output pane. The program keeps running, and later output
+// is appended as usual.
+//
+// Parameters: none.
+// Returns: Nothing.
+void Cdbg.clearOutput() {
+    outputMenu.setVisible(false)
+    programOutput.setText("")
+    status.setText("Program Output cleared")
+}
+
+// Copy the selected Program Output text to the clipboard.
+//
+// Parameters: none.
+// Returns: Nothing.
+void Cdbg.copyOutput() {
+    outputMenu.setVisible(false)
+    if (!programOutput.hasSelection()) {
+        status.setText("Select Program Output text to copy")
+        return
+    }
+    programOutput.copy()
+    status.setText("Copied Program Output selection")
+}
+
+// Copy the whole Program Output pane to the clipboard.
+//
+// Parameters: none.
+// Returns: Nothing.
 void Cdbg.copyAllOutput() {
-        outputMenu.setVisible(false)
-        programOutput.selectAll()
-        programOutput.copy()
-        programOutput.setCursor(1, 1)
-        status.setText("Copied all Program Output")
-    }
+    outputMenu.setVisible(false)
+    programOutput.selectAll()
+    programOutput.copy()
+    programOutput.setCursor(1, 1)
+    status.setText("Copied all Program Output")
+}
 
+// Add the expression currently in the Add Watch dialog.
+//
+// Parameters: none.
+// Returns: Nothing.
 void Cdbg.acceptWatch() {
-        if (addWatch(watchEntry.text())) { closeWatch() }
+    if (addWatch(watchEntry.text())) {
+        closeWatch()
     }
+}
 
+// Append a watch expression when it is non-empty and within the list limits,
+// then refresh.
+//
+// expression: Watch text. Empty, over-long, and excess expressions are
+// rejected.
+// Returns: True when the expression was added.
 bool Cdbg.addWatch(String expression) {
-        expression = expression.trim()
-        if (expression.equals("") || expression.length > 4096 || expressions.length >= 64) {
-            watchStatus.setText("Enter a watch expression (maximum 4096 bytes, 64 watches)")
-            fail("Enter a watch expression (maximum 4096 bytes, 64 watches)")
-            return(false) }
-        int64 i = 0
-        while (i < expressions.length) {
-            if ((expressions[i] as String).equals(expression)) { return(true) }
-            i = i + 1
+    expression = expression.trim()
+    if (expression.equals("")
+            || expression.length > 4096
+            || expressions.length >= 64) {
+        watchStatus.setText(
+                "Enter a watch expression (maximum 4096 bytes, 64 watches)")
+        fail("Enter a watch expression (maximum 4096 bytes, 64 watches)")
+        return(false)
+    }
+    int64 i = 0
+    while (i < expressions.length) {
+        if ((expressions[i] as String).equals(expression)) {
+            return(true)
         }
-        expressions.append(expression)
-        saveState(false)
-        if (loaded && !running && hasRun) { refresh() }
-        else { watches.setText("Watches will be evaluated at the next stop") }
-        return(true)
+        i = i + 1
     }
+    expressions.append(expression)
+    saveState(false)
+    if (loaded && !running && hasRun) {
+        refresh()
+    }
+        else {
+        watches.setText("Watches will be evaluated at the next stop")
+    }
+    return(true)
+}
 
+// Select the stack frame on a clicked row and refresh locals for that frame.
+//
+// line: 1-based row in the stack view.
+// Returns: Nothing.
 void Cdbg.stackClicked(int64 line) {
-        int64 row = line - 1
-        if (row < 0 || row >= stackFrames.length) { return }
-        MiValue frame = stackFrames[row] as MiValue
-        selectFrame(frame.field("level").text)
+    int64 row = line - 1
+    if (row < 0 || row >= stackFrames.length) {
+        return
     }
+    MiValue frame = stackFrames[row] as MiValue
+    selectFrame(frame.field("level").text)
+}
 
+// Ask GDB to select a stack frame for inspection. Execution stays on frame 0.
+//
+// number: Frame level to pass to -stack-select-frame.
+// Returns: Nothing.
 void Cdbg.selectFrame(String number) {
-        if (!stopped()) { return }
-        if (executing) { fail("Frame selection ignored: an execution command is pending")
-            return }
-        if (!identifier(number)) { fail("Select a stack frame")
-            return }
-        enqueue(format("-stack-select-frame {}", number), "frame", number)
+    if (!stopped()) {
+        return
     }
+    if (executing) {
+        fail("Frame selection ignored: an execution command is pending")
+        return
+    }
+    if (!identifier(number)) {
+        fail("Select a stack frame")
+        return
+    }
+    enqueue(format("-stack-select-frame {}", number), "frame", number)
+}
 
+// Select the thread on a clicked row.
+//
+// line: 1-based row in the threads view.
+// Returns: Nothing.
 void Cdbg.threadClicked(int64 line) {
-        int64 row = line - 1
-        if (row < 0 || row >= threadIds.length) { return }
-        selectThread(threadIds[row] as String)
+    int64 row = line - 1
+    if (row < 0 || row >= threadIds.length) {
+        return
     }
+    selectThread(threadIds[row] as String)
+}
 
+// Ask GDB to select a thread and refresh the stack.
+//
+// number: Thread id to pass to -thread-select.
+// Returns: Nothing.
 void Cdbg.selectThread(String number) {
-        if (!stopped()) { return }
-        if (executing) { fail("Thread selection ignored: an execution command is pending")
-            return }
-        if (!identifier(number)) { fail("Select a thread")
-            return }
-        enqueue(format("-thread-select {}", number), "thread", number)
+    if (!stopped()) {
+        return
     }
+    if (executing) {
+        fail("Thread selection ignored: an execution command is pending")
+        return
+    }
+    if (!identifier(number)) {
+        fail("Select a thread")
+        return
+    }
+    enqueue(format("-thread-select {}", number), "thread", number)
+}

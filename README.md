@@ -24,6 +24,7 @@ exit
 
 - [Debugger guide](CDBG.md)
 - [Build and installation](doc/BUILD.md)
+- [Coding standard](doc/CODING.md)
 - [Changelog](doc/CHANGELOG.md)
 
 ## License
