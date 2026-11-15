@@ -269,6 +269,8 @@ GTK fixtures use a private X display and session bus, with `GIO_USE_VFS=local`
 and `GIO_USE_VOLUME_MONITOR=unix` set before either service or the application
 starts. This prevents installed GVFS services from auto-activating on the test
 bus and polluting application diagnostics; stderr assertions remain strict.
+`LIBGL_ALWAYS_SOFTWARE=1` is set with the existing cairo renderer and
+`GDK_DISABLE=gl` so Mesa does not warn about a missing DRI3 device.
 The `cdbg_gtk_environment` test checks this setup without requiring GTK or GVFS.
 SDK discovery and setup regressions can also run without an installed SDK:
 

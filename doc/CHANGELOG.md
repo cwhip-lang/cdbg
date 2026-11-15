@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Dispose every transient window while the main window is still alive so
+  shutdown does not disconnect signals on a destroyed parent.
+- Ask GUI tests for software GL. Mesa still probes DRI3 under the cairo
+  renderer and warns when that device is missing.
 - Mark cdbg class members `public:` so the debugger and its compiled test
   drivers build with cwhip's private-by-default member access.
 - Add `.gitattributes` so GitHub does not label `.cw` files as RedCode.

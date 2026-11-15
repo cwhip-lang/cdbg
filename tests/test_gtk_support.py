@@ -28,6 +28,7 @@ class GtkEnvironmentTest(unittest.TestCase):
             env = kwargs["env"]
             self.assertEqual(env["GIO_USE_VFS"], "local")
             self.assertEqual(env["GIO_USE_VOLUME_MONITOR"], "unix")
+            self.assertEqual(env["LIBGL_ALWAYS_SOFTWARE"], "1")
             self.assertNotIn("DBUS_SESSION_BUS_ADDRESS", env)
             launches.append(command[0])
             if len(launches) == 1:
@@ -42,6 +43,7 @@ class GtkEnvironmentTest(unittest.TestCase):
                 with headless("test-Xvfb", Path(directory), inherited) as env:
                     self.assertEqual(env["GIO_USE_VFS"], "local")
                     self.assertEqual(env["GIO_USE_VOLUME_MONITOR"], "unix")
+                    self.assertEqual(env["LIBGL_ALWAYS_SOFTWARE"], "1")
                     self.assertEqual(env["DBUS_SESSION_BUS_ADDRESS"],
                                      "unix:path=/private-test-bus")
                     self.assertEqual(env["DISPLAY"], ":42")
